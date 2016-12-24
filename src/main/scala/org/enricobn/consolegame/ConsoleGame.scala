@@ -2,7 +2,7 @@ package org.enricobn.consolegame
 
 import java.util.UUID
 
-import org.enricobn.shell.impl.{CatCommand, CdCommand, LsCommand, VirtualShell}
+import org.enricobn.shell.impl._
 import org.enricobn.terminal.{CanvasInputHandler, CanvasTextScreen, TerminalImpl}
 import org.enricobn.vfs.impl.VirtualUsersManagerImpl
 import org.enricobn.vfs.inmemory.InMemoryFS
@@ -14,10 +14,15 @@ import scala.scalajs.js.annotation.{JSExport, JSExportAll}
   */
 @JSExport(name = "ConsoleGame")
 @JSExportAll
-class ConsoleGame(canvasid: String) {
-  private val screen = new CanvasTextScreen(canvasid)
-  private val input = new CanvasInputHandler(canvasid)
-  private val terminal = new TerminalImpl(screen, input, "typewriter-key-1.wav")
+class ConsoleGame(mainCanvasID: String, messagesCanvasID: String) {
+  private val mainScreen = new CanvasTextScreen(mainCanvasID)
+  private val mainInput = new CanvasInputHandler(mainCanvasID)
+  private val mainTerminal = new TerminalImpl(mainScreen, mainInput, "typewriter-key-1.wav")
+
+  private val messagesScreen = new CanvasTextScreen(messagesCanvasID)
+  private val messagesInput = new CanvasInputHandler(messagesCanvasID)
+  private val messagesTerminal = new TerminalImpl(messagesScreen, messagesInput, "typewriter-key-1.wav")
+
   private val rootPassword = UUID.randomUUID().toString
   private val vum = new VirtualUsersManagerImpl(rootPassword)
 
@@ -31,7 +36,9 @@ class ConsoleGame(canvasid: String) {
   goods.add("silver", 10)
   goods.add("bronze", 20)
 
-  private val shell = new VirtualShell(terminal, vum, root)
+  private val context = new VirtualShellContext()
+  private val shell = new VirtualShell(mainTerminal, vum, context, root)
+  private val messagesShell = new VirtualShell(messagesTerminal, vum, context, root)
 
   private val job = for {
     bin <- root.mkdir("bin").right
@@ -41,10 +48,10 @@ class ConsoleGame(canvasid: String) {
     guest <- home.mkdir("guest").right
     goodsFile <- guest.touch("goods").right
     _ <- (goodsFile.content = goods).right
-    _ <- shell.createCommandFile(bin, new LsCommand).right
-    _ <- shell.createCommandFile(bin, new CdCommand).right
-    _ <- shell.createCommandFile(bin, new CatCommand).right
-    _ <- shell.createCommandFile(usrBin, new SellCommand).right
+    _ <- context.createCommandFile(bin, new LsCommand).right
+    _ <- context.createCommandFile(bin, new CdCommand).right
+    _ <- context.createCommandFile(bin, new CatCommand).right
+    _ <- context.createCommandFile(usrBin, new SellCommand).right
   } yield new {
     val currentFolder = guest
     val path = List(bin, usrBin)
@@ -52,10 +59,10 @@ class ConsoleGame(canvasid: String) {
 
   job match {
     case Left(error) =>
-      terminal.add(error.message + VirtualShell.CRLF)
-      terminal.flush()
+      mainTerminal.add(error.message + VirtualShell.CRLF)
+      mainTerminal.flush()
     case Right(j) =>
-      j.path.foreach(shell.addToPath(_))
+      j.path.foreach(context.addToPath(_))
       shell.currentFolder = j.currentFolder
   }
 
@@ -63,5 +70,6 @@ class ConsoleGame(canvasid: String) {
 
   def start() {
     shell.start()
+    messagesShell.start()
   }
 }

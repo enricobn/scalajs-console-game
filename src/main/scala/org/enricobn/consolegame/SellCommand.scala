@@ -3,7 +3,7 @@ package org.enricobn.consolegame
 import org.enricobn.shell.impl._
 import org.enricobn.shell.{Completions, ShellInput, ShellOutput, VirtualCommand}
 import org.enricobn.vfs.IOError._
-import org.enricobn.vfs.{IOError, VirtualFile, VirtualFolder}
+import org.enricobn.vfs._
 
 /**
   * Created by enrico on 12/17/16.
@@ -22,6 +22,7 @@ class SellCommand extends VirtualCommand {
     },
     new IntArgument("qty", true)
   ))
+
 
   override def getName: String = "sell"
 
