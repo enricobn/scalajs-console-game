@@ -76,6 +76,6 @@ class ConsoleGame(mainCanvasID: String, messagesCanvasID: String) {
 
   def start() {
     shell.start()
-    messagesShell.start()
+    messagesShell.startWithCommand("messages")
   }
 }
