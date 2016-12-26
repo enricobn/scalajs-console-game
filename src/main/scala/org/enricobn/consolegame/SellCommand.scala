@@ -1,14 +1,14 @@
 package org.enricobn.consolegame
 
 import org.enricobn.shell.impl._
-import org.enricobn.shell.{Completions, ShellInput, ShellOutput, VirtualCommand}
+import org.enricobn.shell._
 import org.enricobn.vfs.IOError._
 import org.enricobn.vfs._
 
 /**
   * Created by enrico on 12/17/16.
   */
-class SellCommand extends VirtualCommand {
+class SellCommand(private val messages: Messages) extends VirtualCommand {
   private val arguments = new VirtualCommandArguments(List(
     new FileArgument("goodsFile", true) {
       override def complete(currentFolder: VirtualFolder, value: String, previousArguments: Seq[Any]): Seq[String] = {
@@ -23,7 +23,6 @@ class SellCommand extends VirtualCommand {
     new IntArgument("qty", true)
   ))
 
-
   override def getName: String = "sell"
 
   override def run(shell: VirtualShell, shellInput: ShellInput, shellOutput: ShellOutput, args: String*) = {
@@ -32,12 +31,18 @@ class SellCommand extends VirtualCommand {
       case Right(values) => for {
         content <- values.head.asInstanceOf[VirtualFile].content.right
         result <- content match {
-          case goods: Goods => goods
-            .sell(values(1).asInstanceOf[String], values(2).asInstanceOf[Int])
-            .toLeft(())
-            .left
-            .map(new IOError(_))
-            .right
+          case goods: Goods =>
+            val good = values(1).asInstanceOf[String]
+            val qty = values(2).asInstanceOf[Int]
+            goods
+              .sell(good, qty)
+              .toLeft({
+                messages.add("sell " + qty + " of " + good)
+                new RunContext()
+              })
+              .left
+              .map(new IOError(_))
+              .right
           case _ => "Not a Goods file.\n".ioErrorE.right
         }
       } yield result

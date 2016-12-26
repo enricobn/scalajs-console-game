@@ -7,6 +7,7 @@ import org.enricobn.terminal.{CanvasInputHandler, CanvasTextScreen, TerminalImpl
 import org.enricobn.vfs.impl.VirtualUsersManagerImpl
 import org.enricobn.vfs.inmemory.InMemoryFS
 
+import scala.collection.mutable.ListBuffer
 import scala.scalajs.js.annotation.{JSExport, JSExportAll}
 
 /**
@@ -39,19 +40,24 @@ class ConsoleGame(mainCanvasID: String, messagesCanvasID: String) {
   private val context = new VirtualShellContext()
   private val shell = new VirtualShell(mainTerminal, vum, context, root)
   private val messagesShell = new VirtualShell(messagesTerminal, vum, context, root)
+  private val messages = new Messages()
 
   private val job = for {
     bin <- root.mkdir("bin").right
     usr <- root.mkdir("usr").right
+    var_ <- root.mkdir("var").right
     usrBin <- usr.mkdir("bin").right
     home <- root.mkdir("home").right
     guest <- home.mkdir("guest").right
     goodsFile <- guest.touch("goods").right
     _ <- (goodsFile.content = goods).right
+    messagesFile <- var_.touch("messages.txt").right
+    _ <- (messagesFile.content = messages).right
     _ <- context.createCommandFile(bin, new LsCommand).right
     _ <- context.createCommandFile(bin, new CdCommand).right
     _ <- context.createCommandFile(bin, new CatCommand).right
-    _ <- context.createCommandFile(usrBin, new SellCommand).right
+    _ <- context.createCommandFile(usrBin, new SellCommand(messages)).right
+    _ <- context.createCommandFile(usrBin, new MessagesCommand(messages)).right
   } yield new {
     val currentFolder = guest
     val path = List(bin, usrBin)
