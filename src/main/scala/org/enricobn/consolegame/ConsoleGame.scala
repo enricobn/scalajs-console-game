@@ -3,13 +3,12 @@ package org.enricobn.consolegame
 import java.util.UUID
 
 import org.enricobn.consolegame.commands.{MessagesCommand, SellCommand}
-import org.enricobn.consolegame.content.{Goods, Messages}
+import org.enricobn.consolegame.content.{Messages, Warehouse}
 import org.enricobn.shell.impl._
 import org.enricobn.terminal.{CanvasInputHandler, CanvasTextScreen, TerminalImpl}
 import org.enricobn.vfs.impl.VirtualUsersManagerImpl
 import org.enricobn.vfs.inmemory.InMemoryFS
 
-import scala.collection.mutable.ListBuffer
 import scala.scalajs.js.annotation.{JSExport, JSExportAll}
 
 /**
@@ -34,10 +33,10 @@ class ConsoleGame(mainCanvasID: String, messagesCanvasID: String) {
 
   private val fs = new InMemoryFS(vum)
   private val root = fs.root
-  private val goods = new Goods
-  goods.add("gold", 2)
-  goods.add("silver", 10)
-  goods.add("bronze", 20)
+  private val warehouse = new Warehouse()
+  warehouse.add("gold", 2)
+  warehouse.add("silver", 10)
+  warehouse.add("bronze", 20)
 
   private val context = new VirtualShellContext()
   private val shell = new VirtualShell(mainTerminal, vum, context, root)
@@ -52,8 +51,8 @@ class ConsoleGame(mainCanvasID: String, messagesCanvasID: String) {
     usrBin <- usr.mkdir("bin").right
     home <- root.mkdir("home").right
     guest <- home.mkdir("guest").right
-    goodsFile <- guest.touch("goods").right
-    _ <- (goodsFile.content = goods).right
+    goodsFile <- guest.touch("warehouse").right
+    _ <- (goodsFile.content = warehouse).right
     messagesFile <- log.touch("messages.log").right
     _ <- (messagesFile.content = messages).right
     _ <- context.createCommandFile(bin, new LsCommand).right

@@ -5,7 +5,7 @@ import scala.collection.mutable
 /**
   * Created by enrico on 12/17/16.
   */
-class Goods {
+class Warehouse {
   val goods = new mutable.HashMap[String, Int]()
 
   def add(good: String, qty:Int): Unit = {

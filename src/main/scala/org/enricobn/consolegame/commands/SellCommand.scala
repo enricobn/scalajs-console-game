@@ -1,6 +1,6 @@
 package org.enricobn.consolegame.commands
 
-import org.enricobn.consolegame.content.{Goods, Messages}
+import org.enricobn.consolegame.content.{Messages, Warehouse}
 import org.enricobn.shell._
 import org.enricobn.shell.impl._
 import org.enricobn.vfs.IOError._
@@ -11,7 +11,7 @@ import org.enricobn.vfs._
   */
 class SellCommand(private val messages: Messages) extends VirtualCommand {
   private val arguments = new VirtualCommandArguments(List(
-    new FileArgument("goodsFile", true) {
+    new FileArgument("wareHouseFile", true) {
       override def complete(currentFolder: VirtualFolder, value: String, previousArguments: Seq[Any]): Seq[String] = {
         fileNameProposals(currentFolder, value)
       }
@@ -29,24 +29,27 @@ class SellCommand(private val messages: Messages) extends VirtualCommand {
   override def run(shell: VirtualShell, shellInput: ShellInput, shellOutput: ShellOutput, args: String*) = {
     arguments.parse(shell.currentFolder, args: _*) match {
       case Left(message) => Left(new IOError("sell: " + message))
-      case Right(values) => for {
-        content <- values.head.asInstanceOf[VirtualFile].content.right
-        result <- content match {
-          case goods: Goods =>
-            val good = values(1).asInstanceOf[String]
-            val qty = values(2).asInstanceOf[Int]
-            goods
-              .sell(good, qty)
-              .toLeft({
-                messages.add("sell " + qty + " of " + good)
-                new RunContext()
-              })
-              .left
-              .map(new IOError(_))
-              .right
-          case _ => "Not a Goods file.\n".ioErrorE.right
-        }
-      } yield result
+      case Right(values) =>
+        val file = values.head.asInstanceOf[VirtualFile]
+        val good = values(1).asInstanceOf[String]
+        val qty = values(2).asInstanceOf[Int]
+
+        for {
+          content <- file.content.right
+          result <- content match {
+            case warehouse: Warehouse =>
+              warehouse
+                .sell(good, qty)
+                .toLeft({
+                  messages.add("sell " + qty + " of " + good)
+                  new RunContext()
+                })
+                .left
+                .map(new IOError(_))
+                .right
+            case _ => "Not a Goods file.\n".ioErrorE.right
+          }
+        } yield result
     }
   }
 
@@ -55,7 +58,7 @@ class SellCommand(private val messages: Messages) extends VirtualCommand {
   }
 
   private def goodsProposals(file: VirtualFile, prefix: String) : Seq[String] = {
-    getGoodsFile(file) match {
+    getWarehouseFile(file) match {
       case Some(goods) => goods.goods.keySet.filter(_.startsWith(prefix)).toSeq
       case _ => Seq.empty
     }
@@ -63,12 +66,12 @@ class SellCommand(private val messages: Messages) extends VirtualCommand {
 
   // TODO relativeFile
   private def fileNameProposals(currentFolder: VirtualFolder, prefix: String) : Seq[String] = {
-    Completions.resolveFiles(currentFolder, prefix, getGoodsFile(_).isDefined)
+    Completions.resolveFiles(currentFolder, prefix, getWarehouseFile(_).isDefined)
   }
 
-  private def getGoodsFile(file: VirtualFile) : Option[Goods] =
+  private def getWarehouseFile(file: VirtualFile) : Option[Warehouse] =
     file.content.fold(_ => None, {
-      case goods: Goods => Some(goods)
+      case goods: Warehouse => Some(goods)
       case _ => None
     })
 
