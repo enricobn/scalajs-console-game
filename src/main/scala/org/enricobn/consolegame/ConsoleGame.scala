@@ -48,12 +48,13 @@ class ConsoleGame(mainCanvasID: String, messagesCanvasID: String) {
     bin <- root.mkdir("bin").right
     usr <- root.mkdir("usr").right
     var_ <- root.mkdir("var").right
+    log <- var_.mkdir("log").right
     usrBin <- usr.mkdir("bin").right
     home <- root.mkdir("home").right
     guest <- home.mkdir("guest").right
     goodsFile <- guest.touch("goods").right
     _ <- (goodsFile.content = goods).right
-    messagesFile <- var_.touch("messages.txt").right
+    messagesFile <- log.touch("messages.log").right
     _ <- (messagesFile.content = messages).right
     _ <- context.createCommandFile(bin, new LsCommand).right
     _ <- context.createCommandFile(bin, new CdCommand).right
