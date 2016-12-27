@@ -1,4 +1,4 @@
-package org.enricobn.consolegame
+package org.enricobn.consolegame.content
 
 import scala.collection.mutable
 

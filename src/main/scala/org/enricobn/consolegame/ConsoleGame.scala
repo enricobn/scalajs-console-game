@@ -2,6 +2,8 @@ package org.enricobn.consolegame
 
 import java.util.UUID
 
+import org.enricobn.consolegame.commands.{MessagesCommand, SellCommand}
+import org.enricobn.consolegame.content.{Goods, Messages}
 import org.enricobn.shell.impl._
 import org.enricobn.terminal.{CanvasInputHandler, CanvasTextScreen, TerminalImpl}
 import org.enricobn.vfs.impl.VirtualUsersManagerImpl

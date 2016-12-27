@@ -1,7 +1,8 @@
-package org.enricobn.consolegame
+package org.enricobn.consolegame.commands
 
-import org.enricobn.shell.impl._
+import org.enricobn.consolegame.content.{Goods, Messages}
 import org.enricobn.shell._
+import org.enricobn.shell.impl._
 import org.enricobn.vfs.IOError._
 import org.enricobn.vfs._
 
