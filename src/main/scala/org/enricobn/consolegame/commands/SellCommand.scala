@@ -26,11 +26,14 @@ class SellCommand(private val messages: Messages) extends VirtualCommand {
 
   override def getName: String = "sell"
 
-  override def run(shell: VirtualShell, shellInput: ShellInput, shellOutput: ShellOutput, args: String*) = {
+  override def run(shell: VirtualShell, shellInput: ShellInput, shellOutput: ShellOutput, args: String*) : Either[IOError, RunContext] = {
     arguments.parse(shell.currentFolder, args: _*) match {
       case Left(message) => Left(new IOError("sell: " + message))
       case Right(values) =>
         val file = values.head.asInstanceOf[VirtualFile]
+        if (!shell.vum.checkWriteAccess(file)) {
+          return "Access denied.".ioErrorE
+        }
         val good = values(1).asInstanceOf[String]
         val qty = values(2).asInstanceOf[Int]
 

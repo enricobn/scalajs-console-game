@@ -38,7 +38,7 @@ class ConsoleGame(mainCanvasID: String, messagesCanvasID: String) {
   warehouse.add("silver", 10)
   warehouse.add("bronze", 20)
 
-  private val context = new VirtualShellContext()
+  private val context = new VirtualShellContextImpl()
   private val shell = new VirtualShell(mainTerminal, vum, context, root)
   private val messagesShell = new VirtualShell(messagesTerminal, vum, context, root)
   private val messages = new Messages()
@@ -51,8 +51,9 @@ class ConsoleGame(mainCanvasID: String, messagesCanvasID: String) {
     usrBin <- usr.mkdir("bin").right
     home <- root.mkdir("home").right
     guest <- home.mkdir("guest").right
-    goodsFile <- guest.touch("warehouse").right
-    _ <- (goodsFile.content = warehouse).right
+    warehouseFile <- guest.touch("warehouse").right
+    _ <- Right({warehouseFile.chown("guest")}).right
+    _ <- (warehouseFile.content = warehouse).right
     messagesFile <- log.touch("messages.log").right
     _ <- (messagesFile.content = messages).right
     _ <- context.createCommandFile(bin, new LsCommand).right
@@ -80,4 +81,5 @@ class ConsoleGame(mainCanvasID: String, messagesCanvasID: String) {
     shell.start()
     messagesShell.startWithCommand("messages")
   }
+
 }
