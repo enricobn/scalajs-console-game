@@ -38,21 +38,16 @@ class SellCommand(private val messages: Messages) extends VirtualCommand {
         val qty = values(2).asInstanceOf[Int]
 
         for {
-          content <- file.content.right
-          result <- content match {
-            case warehouse: Warehouse =>
-              warehouse
-                .sell(good, qty)
-                .toLeft({
-                  messages.add("sell " + qty + " of " + good)
-                  new RunContext()
-                })
-                .left
-                .map(new IOError(_))
-                .right
-            case _ => "Not a Goods file.\n".ioErrorE.right
-          }
-        } yield result
+          warehouse <- contentAs(file, classOf[Warehouse]).right
+          runContext <- warehouse.sell(good, qty)
+            .toLeft({
+              messages.add("sell " + qty + " of " + good)
+              new RunContext()
+            })
+            .left
+            .map(new IOError(_))
+            .left
+        } yield runContext
     }
   }
 
