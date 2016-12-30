@@ -8,8 +8,13 @@ import org.enricobn.shell.impl._
 import org.enricobn.terminal.{CanvasInputHandler, CanvasTextScreen, TerminalImpl}
 import org.enricobn.vfs.impl.VirtualUsersManagerImpl
 import org.enricobn.vfs.inmemory.InMemoryFS
+import org.scalajs.dom
+import org.scalajs.dom.html._
 
 import scala.scalajs.js.annotation.{JSExport, JSExportAll}
+
+// to access members of structural types (new {}) without warnings
+import scala.language.reflectiveCalls
 
 /**
   * Created by enrico on 12/8/16.
@@ -20,6 +25,9 @@ class ConsoleGame(mainCanvasID: String, messagesCanvasID: String) {
   private val mainScreen = new CanvasTextScreen(mainCanvasID)
   private val mainInput = new CanvasInputHandler(mainCanvasID)
   private val mainTerminal = new TerminalImpl(mainScreen, mainInput, "typewriter-key-1.wav")
+  private val mainCanvas = dom.document.getElementById(mainCanvasID).asInstanceOf[Canvas]
+  mainCanvas.contentEditable = "true"
+  mainCanvas.focus()
 
   private val messagesScreen = new CanvasTextScreen(messagesCanvasID)
   private val messagesInput = new CanvasInputHandler(messagesCanvasID)
@@ -52,10 +60,10 @@ class ConsoleGame(mainCanvasID: String, messagesCanvasID: String) {
     home <- root.mkdir("home").right
     guest <- home.mkdir("guest").right
     warehouseFile <- guest.touch("warehouse").right
-    _ <- Right({warehouseFile.chown("guest")}).right
-    _ <- (warehouseFile.content = warehouse).right
+    _ <- warehouseFile.chown("guest").toLeft(None).right
+    _ <- (warehouseFile.content = warehouse).toLeft(None).right
     messagesFile <- log.touch("messages.log").right
-    _ <- (messagesFile.content = messages).right
+    _ <- (messagesFile.content = messages).toLeft(None).right
     _ <- context.createCommandFile(bin, new LsCommand).right
     _ <- context.createCommandFile(bin, new CdCommand).right
     _ <- context.createCommandFile(bin, new CatCommand).right
