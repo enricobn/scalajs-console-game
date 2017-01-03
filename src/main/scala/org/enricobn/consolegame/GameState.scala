@@ -75,8 +75,6 @@ class GameStateFactory {
 
 }
 
-case class SerializableGameState(contents: Map[String, AnyRef])
-
 class GameState() {
   private val _contents = new ArrayBuffer[VirtualFile]()
 
