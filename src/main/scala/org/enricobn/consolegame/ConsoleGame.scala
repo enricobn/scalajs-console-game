@@ -3,14 +3,17 @@ package org.enricobn.consolegame
 import java.util.UUID
 
 import org.enricobn.consolegame.commands.{MessagesCommand, SellCommand}
-import org.enricobn.consolegame.content.{Messages, Warehouse}
+import org.enricobn.consolegame.content.{Messages, MessagesSerializer, Warehouse}
 import org.enricobn.shell.impl._
 import org.enricobn.terminal.{CanvasInputHandler, CanvasTextScreen, TerminalImpl}
 import org.enricobn.vfs.impl.VirtualUsersManagerImpl
 import org.enricobn.vfs.inmemory.InMemoryFS
 import org.scalajs.dom
+import org.scalajs.dom.FileReader
 import org.scalajs.dom.html._
+import org.scalajs.dom.raw._
 
+import scala.scalajs.js
 import scala.scalajs.js.annotation.{JSExport, JSExportAll}
 
 // to access members of structural types (new {}) without warnings
@@ -21,7 +24,11 @@ import scala.language.reflectiveCalls
   */
 @JSExport(name = "ConsoleGame")
 @JSExportAll
-class ConsoleGame(mainCanvasID: String, messagesCanvasID: String) {
+class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadGameID: String, saveGameID: String) {
+  private val gameStateFactory = new GameStateFactory()
+  gameStateFactory.register(MessagesSerializer)
+
+  private val gameState = new GameState()
   private val mainScreen = new CanvasTextScreen(mainCanvasID)
   private val mainInput = new CanvasInputHandler(mainCanvasID)
   private val mainTerminal = new TerminalImpl(mainScreen, mainInput, "typewriter-key-1.wav")
@@ -69,9 +76,12 @@ class ConsoleGame(mainCanvasID: String, messagesCanvasID: String) {
     _ <- context.createCommandFile(bin, new CatCommand).right
     _ <- context.createCommandFile(usrBin, new SellCommand(messages)).right
     _ <- context.createCommandFile(usrBin, new MessagesCommand(messages)).right
-  } yield new {
-    val currentFolder = guest
-    val path = List(bin, usrBin)
+  } yield {
+    gameState.add(messagesFile.path, messages)
+    new {
+      val currentFolder = guest
+      val path = List(bin, usrBin)
+    }
   }
 
   job match {
@@ -88,6 +98,40 @@ class ConsoleGame(mainCanvasID: String, messagesCanvasID: String) {
   def start() {
     shell.start()
     messagesShell.startWithCommand("messages")
+    val loadGame = dom.document.getElementById(loadGameID).asInstanceOf[Input]
+    loadGame.addEventListener("change", readGame(loadGame) _, false)
+    val saveGameAnchor = dom.document.getElementById(saveGameID).asInstanceOf[Anchor]
+    saveGameAnchor.onclick = saveGame(saveGameAnchor) _
+  }
+
+  def saveGame(anchor: Anchor)(evt: MouseEvent): Unit = {
+    val s = gameStateFactory.save(gameState)
+    val file = new Blob(js.Array(s), BlobPropertyBag("text/plain"))
+    anchor.href = URL.createObjectURL(file)
+    anchor.pathname = "consolegame.json"
+  }
+
+  def readGame(input: Input)(evt: Event): Unit = {
+      //Retrieve the first (and only!) File from the FileList object
+      val f = evt.target.asInstanceOf[Input].files(0)
+
+      if (f != null) {
+        val r = new FileReader()
+        r.onload = {e: UIEvent => {
+          println("loading...")
+          val content = r.result.toString
+          val gameState = gameStateFactory.load(content)
+          println(gameState.contents)
+//          val contents = e.target.asInstanceOf[Input].result
+//          dom.window.alert( "Got the file.n"
+//            + "name: " + f.name + "\n"
+//            + "type: " + f.`type` + "\n"
+//            + "size: " + f.size + " bytes\n"
+//            + "starts with: " + contents.substr(1, contents.indexOf('\n'))
+//          )
+        }}
+        r.readAsText(f)
+      }
   }
 
 }
