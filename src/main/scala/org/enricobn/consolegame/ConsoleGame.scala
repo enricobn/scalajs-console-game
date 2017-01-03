@@ -77,7 +77,7 @@ class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadGameID: St
     _ <- context.createCommandFile(usrBin, new SellCommand(messages)).right
     _ <- context.createCommandFile(usrBin, new MessagesCommand(messages)).right
   } yield {
-    gameState.add(messagesFile.path, messages)
+    gameState.add(messagesFile)
     new {
       val currentFolder = guest
       val path = List(bin, usrBin)
@@ -105,10 +105,13 @@ class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadGameID: St
   }
 
   def saveGame(anchor: Anchor)(evt: MouseEvent): Unit = {
-    val s = gameStateFactory.save(gameState)
-    val file = new Blob(js.Array(s), BlobPropertyBag("text/plain"))
-    anchor.href = URL.createObjectURL(file)
-    anchor.pathname = "consolegame.json"
+    gameStateFactory.save(gameState) match {
+      case Left(error) => dom.window.alert(s"Error saving game: ${error.message}.")
+      case Right(s) =>
+        val file = new Blob(js.Array(s), BlobPropertyBag("text/plain"))
+        anchor.href = URL.createObjectURL(file)
+        anchor.pathname = "consolegame.json"
+    }
   }
 
   def readGame(input: Input)(evt: Event): Unit = {
@@ -120,8 +123,13 @@ class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadGameID: St
         r.onload = {e: UIEvent => {
           println("loading...")
           val content = r.result.toString
-          val gameState = gameStateFactory.load(content)
-          println(gameState.contents)
+          vum.logUser("root", rootPassword)
+          gameStateFactory.load(content, fs) match {
+            case Left(error) => dom.window.alert(s"Error loading game: ${error.message}.")
+            case Right(gs) =>
+              println(gs.contents)
+          }
+          vum.logUser("guest", guestPassword)
 //          val contents = e.target.asInstanceOf[Input].result
 //          dom.window.alert( "Got the file.n"
 //            + "name: " + f.name + "\n"
