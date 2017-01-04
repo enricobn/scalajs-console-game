@@ -6,11 +6,12 @@ import org.enricobn.consolegame.commands.{MessagesCommand, SellCommand}
 import org.enricobn.consolegame.content.{Messages, MessagesSerializer, Warehouse}
 import org.enricobn.shell.impl._
 import org.enricobn.terminal.{CanvasInputHandler, CanvasTextScreen, TerminalImpl}
+import org.enricobn.vfs.IOError
 import org.enricobn.vfs.impl.VirtualUsersManagerImpl
 import org.enricobn.vfs.inmemory.InMemoryFS
 import org.scalajs.dom
 import org.scalajs.dom.FileReader
-import org.scalajs.dom.html._
+import org.scalajs.dom.html.{Canvas, Input, Anchor}
 import org.scalajs.dom.raw._
 
 import scala.scalajs.js
@@ -48,63 +49,29 @@ class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadGameID: St
 
   private val fs = new InMemoryFS(vum)
   private val root = fs.root
-  private val warehouse = new Warehouse()
-  warehouse.add("gold", 2)
-  warehouse.add("silver", 10)
-  warehouse.add("bronze", 20)
 
   private val context = new VirtualShellContextImpl()
   private val shell = new VirtualShell(mainTerminal, vum, context, root)
   private val messagesShell = new VirtualShell(messagesTerminal, vum, context, root)
-  private val messages = new Messages()
 
-  private val job = for {
-    bin <- root.mkdir("bin").right
-    usr <- root.mkdir("usr").right
-    var_ <- root.mkdir("var").right
-    log <- var_.mkdir("log").right
-    usrBin <- usr.mkdir("bin").right
-    home <- root.mkdir("home").right
-    guest <- home.mkdir("guest").right
-    warehouseFile <- guest.touch("warehouse").right
-    _ <- warehouseFile.chown("guest").toLeft(None).right
-    _ <- (warehouseFile.content = warehouse).toLeft(None).right
-    messagesFile <- log.touch("messages.log").right
-    _ <- (messagesFile.content = messages).toLeft(None).right
-    _ <- context.createCommandFile(bin, new LsCommand).right
-    _ <- context.createCommandFile(bin, new CdCommand).right
-    _ <- context.createCommandFile(bin, new CatCommand).right
-    _ <- context.createCommandFile(usrBin, new SellCommand(messages)).right
-    _ <- context.createCommandFile(usrBin, new MessagesCommand(messages)).right
-  } yield {
-    gameState.add(messagesFile)
-    new {
-      val currentFolder = guest
-      val path = List(bin, usrBin)
+  def start() {
+    initFS()
+      .orElse(newGame())
+      .orElse(initUserCommands())
+    match {
+      case Some(error) => dom.window.alert(s"Error initializing: ${error.message}")
+      case _ =>
+        vum.logUser("guest", guestPassword)
+        shell.start()
+        messagesShell.startWithCommand("messages")
+        val loadGame = dom.document.getElementById(loadGameID).asInstanceOf[Input]
+        loadGame.addEventListener("change", readGame(loadGame) _, false)
+        val saveGameAnchor = dom.document.getElementById(saveGameID).asInstanceOf[Anchor]
+        saveGameAnchor.onclick = saveGame(saveGameAnchor) _
     }
   }
 
-  job match {
-    case Left(error) =>
-      mainTerminal.add(error.message + VirtualShell.CRLF)
-      mainTerminal.flush()
-    case Right(j) =>
-      j.path.foreach(context.addToPath(_))
-      shell.currentFolder = j.currentFolder
-  }
-
-  vum.logUser("guest", guestPassword)
-
-  def start() {
-    shell.start()
-    messagesShell.startWithCommand("messages")
-    val loadGame = dom.document.getElementById(loadGameID).asInstanceOf[Input]
-    loadGame.addEventListener("change", readGame(loadGame) _, false)
-    val saveGameAnchor = dom.document.getElementById(saveGameID).asInstanceOf[Anchor]
-    saveGameAnchor.onclick = saveGame(saveGameAnchor) _
-  }
-
-  def saveGame(anchor: Anchor)(evt: MouseEvent): Unit = {
+  private def saveGame(anchor: Anchor)(evt: MouseEvent): Unit = {
     gameStateFactory.save(gameState) match {
       case Left(error) => dom.window.alert(s"Error saving game: ${error.message}.")
       case Right(s) =>
@@ -114,7 +81,7 @@ class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadGameID: St
     }
   }
 
-  def readGame(input: Input)(evt: Event): Unit = {
+  private def readGame(input: Input)(evt: Event): Unit = {
       //Retrieve the first (and only!) File from the FileList object
       val f = evt.target.asInstanceOf[Input].files(0)
 
@@ -140,6 +107,82 @@ class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadGameID: St
         }}
         r.readAsText(f)
       }
+  }
+
+  private def initFS(): Option[IOError] = {
+    val job = for {
+      bin <- root.mkdir("bin").right
+      usr <- root.mkdir("usr").right
+      var_ <- root.mkdir("var").right
+      log <- var_.mkdir("log").right
+      usrBin <- usr.mkdir("bin").right
+      home <- root.mkdir("home").right
+      guest <- home.mkdir("guest").right
+      _ <- context.createCommandFile(bin, new LsCommand).right
+      _ <- context.createCommandFile(bin, new CdCommand).right
+      _ <- context.createCommandFile(bin, new CatCommand).right
+    } yield {
+      new {
+        val currentFolder = guest
+        val path = List(bin, usrBin)
+      }
+    }
+
+    job match {
+      case Left(error) => Some(error)
+      case Right(j) =>
+        j.path.foreach(context.addToPath(_))
+        shell.currentFolder = j.currentFolder
+        None
+    }
+
+  }
+
+  private def newGame(): Option[IOError] = {
+    val warehouse = new Warehouse()
+    warehouse.add("gold", 2)
+    warehouse.add("silver", 10)
+    warehouse.add("bronze", 20)
+
+    val messages = new Messages()
+
+    val job = for {
+      logO <- root.resolveFolder("/var/log").right
+      log <- logO.toRight(IOError("Cannot find folder /var/log.")).right
+      guestO <- root.resolveFolder("/home/guest").right
+      guest <- guestO.toRight(IOError("Cannot find folder /home/guest.")).right
+      warehouseFile <- guest.touch("warehouse").right
+      _ <- warehouseFile.chown("guest").toLeft(None).right
+      _ <- (warehouseFile.content = warehouse).toLeft(None).right
+      messagesFile <- log.touch("messages.log").right
+      _ <- (messagesFile.content = messages).toLeft(None).right
+    } yield {
+      gameState.add(messagesFile)
+    }
+
+    job match {
+      case Left(error) => Some(error)
+      case Right(j) => None
+    }
+  }
+
+  private def initUserCommands(): Option[IOError] = {
+    val job = for {
+      usrBinO <- root.resolveFolder("/usr/bin").right
+      usrBin <- usrBinO.toRight(IOError("Cannot find folder /usr/bin.")).right
+      logO <- root.resolveFolder("/var/log").right
+      log <- logO.toRight(IOError("Cannot find folder /var/log.")).right
+      messagesFileO <- log.findFile("messages.log").right
+      messagesFile <- messagesFileO.toRight(IOError("Cannot find file /var/log/messages.log.")).right
+      content <- messagesFile.content.right
+      _ <- context.createCommandFile(usrBin, new SellCommand(content.asInstanceOf[Messages])).right
+      _ <- context.createCommandFile(usrBin, new MessagesCommand(content.asInstanceOf[Messages])).right
+    } yield None
+
+    job match {
+      case Left(error) => Some(error)
+      case _ => None
+    }
   }
 
 }
