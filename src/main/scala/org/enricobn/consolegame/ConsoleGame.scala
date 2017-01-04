@@ -104,24 +104,26 @@ class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadGameID: St
           println("loading...")
           val content = r.result.toString
           vum.logUser("root", rootPassword)
-          messagesShell.stopInteractiveCommands()
-          gameState.contents.foreach(file => {
-            file.parent.deleteFile(file.name)
+          messagesShell.stopInteractiveCommands({() =>
+            gameState.contents.foreach(file => {
+              file.parent.deleteFile(file.name)
+            })
+            deleteUserCommands()
+            gameStateFactory.load(content, fs) match {
+              case Left(error) => dom.window.alert(s"Error loading game: ${error.message}.")
+              case Right(gs) =>
+                gameState = gs
+            }
+            initUserCommands()
+            messagesShell.run(MessagesCommand.NAME) match {
+              case Left(error) => dom.window.alert(s"Error restaring messages: ${error.message}.")
+              case _ =>
+            }
+            vum.logUser("guest", guestPassword)
+            messagesTerminal.add(s"Game loaded from ${f.name}\n")
+            messagesTerminal.flush()
+            false
           })
-          deleteUserCommands()
-          gameStateFactory.load(content, fs) match {
-            case Left(error) => dom.window.alert(s"Error loading game: ${error.message}.")
-            case Right(gs) =>
-              gameState = gs
-          }
-          initUserCommands()
-          messagesShell.run(MessagesCommand.NAME) match {
-            case Left(error) => dom.window.alert(s"Error restaring messages: ${error.message}.")
-            case _ =>
-          }
-          vum.logUser("guest", guestPassword)
-          messagesTerminal.add(s"Game loaded from ${f.name}\n")
-          messagesTerminal.flush()
         }}
         r.readAsText(f)
       }
