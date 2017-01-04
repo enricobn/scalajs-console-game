@@ -9,7 +9,13 @@ import org.enricobn.vfs._
 /**
   * Created by enrico on 12/17/16.
   */
+object SellCommand {
+  val NAME = "sell"
+}
+
 class SellCommand(private val messages: Messages) extends VirtualCommand {
+  import SellCommand._
+
   private val arguments = new VirtualCommandArguments(List(
     new FileArgument("wareHouseFile", true) {
       override def complete(currentFolder: VirtualFolder, value: String, previousArguments: Seq[Any]): Seq[String] = {
@@ -24,7 +30,7 @@ class SellCommand(private val messages: Messages) extends VirtualCommand {
     new IntArgument("qty", true)
   ))
 
-  override def getName: String = "sell"
+  override def getName: String = NAME
 
   override def run(shell: VirtualShell, shellInput: ShellInput, shellOutput: ShellOutput, args: String*) : Either[IOError, RunContext] = {
     arguments.parse(shell.currentFolder, args: _*) match {

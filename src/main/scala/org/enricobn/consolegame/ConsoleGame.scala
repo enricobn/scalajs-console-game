@@ -9,11 +9,13 @@ import org.enricobn.terminal.{CanvasInputHandler, CanvasTextScreen, TerminalImpl
 import org.enricobn.vfs.IOError
 import org.enricobn.vfs.impl.VirtualUsersManagerImpl
 import org.enricobn.vfs.inmemory.InMemoryFS
+
+import IOError._
+
 import org.scalajs.dom
 import org.scalajs.dom.FileReader
-import org.scalajs.dom.html.{Canvas, Input, Anchor}
+import org.scalajs.dom.html.{Anchor, Canvas, Input}
 import org.scalajs.dom.raw._
-
 import scala.scalajs.js
 import scala.scalajs.js.annotation.{JSExport, JSExportAll}
 
@@ -29,7 +31,7 @@ class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadGameID: St
   private val gameStateFactory = new GameStateFactory()
   gameStateFactory.register(MessagesSerializer)
 
-  private val gameState = new GameState()
+  private var gameState = new GameState()
   private val mainScreen = new CanvasTextScreen(mainCanvasID)
   private val mainInput = new CanvasInputHandler(mainCanvasID)
   private val mainTerminal = new TerminalImpl(mainScreen, mainInput, "typewriter-key-1.wav")
@@ -58,12 +60,21 @@ class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadGameID: St
     initFS()
       .orElse(newGame())
       .orElse(initUserCommands())
+      .orElse(vum.logUser("guest", guestPassword))
+      .orElse({
+        root.resolveFolder("/home/guest") match {
+          case Left(error) => Some(error)
+          case Right(Some(guestFolder)) =>
+            shell.currentFolder = guestFolder
+            None
+          case _ => "Cannot find /home/guest".ioErrorO
+        }
+      })
     match {
       case Some(error) => dom.window.alert(s"Error initializing: ${error.message}")
       case _ =>
-        vum.logUser("guest", guestPassword)
         shell.start()
-        messagesShell.startWithCommand("messages")
+        messagesShell.startWithCommand(MessagesCommand.NAME)
         val loadGame = dom.document.getElementById(loadGameID).asInstanceOf[Input]
         loadGame.addEventListener("change", readGame(loadGame) _, false)
         val saveGameAnchor = dom.document.getElementById(saveGameID).asInstanceOf[Anchor]
@@ -78,6 +89,8 @@ class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadGameID: St
         val file = new Blob(js.Array(s), BlobPropertyBag("text/plain"))
         anchor.href = URL.createObjectURL(file)
         anchor.pathname = "consolegame.json"
+        messagesTerminal.add(s"Game saved.\n")
+        messagesTerminal.flush()
     }
   }
 
@@ -91,19 +104,24 @@ class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadGameID: St
           println("loading...")
           val content = r.result.toString
           vum.logUser("root", rootPassword)
+          messagesShell.stopInteractiveCommands()
+          gameState.contents.foreach(file => {
+            file.parent.deleteFile(file.name)
+          })
+          deleteUserCommands()
           gameStateFactory.load(content, fs) match {
             case Left(error) => dom.window.alert(s"Error loading game: ${error.message}.")
             case Right(gs) =>
-              println(gs.contents)
+              gameState = gs
+          }
+          initUserCommands()
+          messagesShell.run(MessagesCommand.NAME) match {
+            case Left(error) => dom.window.alert(s"Error restaring messages: ${error.message}.")
+            case _ =>
           }
           vum.logUser("guest", guestPassword)
-//          val contents = e.target.asInstanceOf[Input].result
-//          dom.window.alert( "Got the file.n"
-//            + "name: " + f.name + "\n"
-//            + "type: " + f.`type` + "\n"
-//            + "size: " + f.size + " bytes\n"
-//            + "starts with: " + contents.substr(1, contents.indexOf('\n'))
-//          )
+          messagesTerminal.add(s"Game loaded from ${f.name}\n")
+          messagesTerminal.flush()
         }}
         r.readAsText(f)
       }
@@ -122,20 +140,11 @@ class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadGameID: St
       _ <- context.createCommandFile(bin, new CdCommand).right
       _ <- context.createCommandFile(bin, new CatCommand).right
     } yield {
-      new {
-        val currentFolder = guest
-        val path = List(bin, usrBin)
-      }
+      context.addToPath(bin)
+      context.addToPath(usrBin)
     }
 
-    job match {
-      case Left(error) => Some(error)
-      case Right(j) =>
-        j.path.foreach(context.addToPath(_))
-        shell.currentFolder = j.currentFolder
-        None
-    }
-
+    job.left.toOption
   }
 
   private def newGame(): Option[IOError] = {
@@ -160,10 +169,8 @@ class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadGameID: St
       gameState.add(messagesFile)
     }
 
-    job match {
-      case Left(error) => Some(error)
-      case Right(j) => None
-    }
+    job.left.toOption
+
   }
 
   private def initUserCommands(): Option[IOError] = {
@@ -179,10 +186,18 @@ class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadGameID: St
       _ <- context.createCommandFile(usrBin, new MessagesCommand(content.asInstanceOf[Messages])).right
     } yield None
 
-    job match {
-      case Left(error) => Some(error)
-      case _ => None
-    }
+    job.left.toOption
+  }
+
+  private def deleteUserCommands(): Option[IOError] = {
+    val job = for {
+      usrBinO <- root.resolveFolder("/usr/bin").right
+      usrBin <- usrBinO.toRight(IOError("Cannot find folder /usr/bin.")).right
+      _ <- usrBin.deleteFile(SellCommand.NAME).right
+      _ <- usrBin.deleteFile(MessagesCommand.NAME).right
+    } yield None
+
+    job.left.toOption
   }
 
 }

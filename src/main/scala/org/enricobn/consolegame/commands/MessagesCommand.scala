@@ -11,9 +11,14 @@ import scala.collection.mutable
 /**
   * Created by enrico on 12/17/16.
   */
-class MessagesCommand(messages: Messages) extends VirtualCommand {
+object MessagesCommand {
+  val NAME = "messages"
+}
 
-  override def getName: String = "messages"
+class MessagesCommand(messages: Messages) extends VirtualCommand {
+  import MessagesCommand._
+
+  override def getName: String = NAME
 
   override def run(shell: VirtualShell, shellInput: ShellInput, shellOutput: ShellOutput, args: String*) = {
     val stack = new mutable.Stack[String]()
