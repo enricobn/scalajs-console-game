@@ -25,12 +25,11 @@ class GameStateFactory {
 
   def load(s: String, fs: VirtualFS) : Either[IOError, GameState] = {
     val ser = read[Iterable[SerializedContent]](s)
-    val gameState = new GameState()
     val filesE = ser.map(c => {
-      val serializer = classRegistry(c.className)
-      val deserialized = deserialize(c.content, serializer)
       val path = VirtualAbsolutePath(c.path)
       for {
+        serializer <- classRegistry.get(c.className).toRight(IOError(s"Cannot find serializer for ${c.className}")).right
+        deserialized <- deserialize(c.content, serializer).right
         parent <- path.parent.toRight(IOError(s"No parent found for $path")).right
         folderO <- fs.root.resolveFolder(parent.path).right
         folder <- folderO.toRight(IOError(s"Cannot find folder $parent")).right
@@ -44,6 +43,7 @@ class GameStateFactory {
     lift(filesE) match {
       case Left(error) => Left(error)
       case Right(files) =>
+        val gameState = new GameState()
         files.foreach(gameState.add)
         Right(gameState)
     }
@@ -53,11 +53,12 @@ class GameStateFactory {
     val serE = gameState.contents.map {file =>
       for {
         content <- file.content.right
+        className <- Right(content.getClass.getName).right
+        serializer <- classRegistry.get(content.getClass.getName)
+          .toRight(IOError(s"Cannot find serializer for ${content.getClass.getName}")).right
+        serialized <- serialize(content, serializer).right
       } yield {
-        val className: String = content.getClass.getName
-        val serializer = classRegistry(className)
-
-        SerializedContent(file.path, file.owner, file.permissions.octal, className, serialize(content, serializer))
+        SerializedContent(file.path, file.owner, file.permissions.octal, className, serialized)
       }
     }
 
@@ -67,10 +68,10 @@ class GameStateFactory {
     }
   }
 
-  private def serialize[T <: AnyRef](value: T, contentSerializer: ContentSerializer[T]) : String =
+  private def serialize[T <: AnyRef](value: T, contentSerializer: ContentSerializer[T]) : Either[IOError, String] =
     contentSerializer.toString(value)
 
-  private def deserialize[T <: AnyRef](s: String, contentSerializer: ContentSerializer[T]) : T =
+  private def deserialize[T <: AnyRef](s: String, contentSerializer: ContentSerializer[T]) : Either[IOError, T] =
     contentSerializer.fromString(s)
 
 }
