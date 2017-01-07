@@ -3,19 +3,18 @@ package org.enricobn.consolegame
 import java.util.UUID
 
 import org.enricobn.consolegame.commands.{MessagesCommand, SellCommand}
-import org.enricobn.consolegame.content.{Messages, MessagesSerializer, Warehouse}
+import org.enricobn.consolegame.content.{Messages, Warehouse}
 import org.enricobn.shell.impl._
 import org.enricobn.terminal.{CanvasInputHandler, CanvasTextScreen, TerminalImpl}
 import org.enricobn.vfs.IOError
+import org.enricobn.vfs.IOError._
 import org.enricobn.vfs.impl.VirtualUsersManagerImpl
 import org.enricobn.vfs.inmemory.InMemoryFS
-
-import IOError._
-
 import org.scalajs.dom
 import org.scalajs.dom.FileReader
 import org.scalajs.dom.html.{Anchor, Canvas, Input}
 import org.scalajs.dom.raw._
+
 import scala.scalajs.js
 import scala.scalajs.js.annotation.{JSExport, JSExportAll}
 
@@ -28,9 +27,6 @@ import scala.language.reflectiveCalls
 @JSExport(name = "ConsoleGame")
 @JSExportAll
 class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadGameID: String, saveGameID: String) {
-  private val gameStateFactory = new GameStateFactory()
-  gameStateFactory.register(MessagesSerializer)
-
   private var gameState = new GameState()
   private val mainScreen = new CanvasTextScreen(mainCanvasID)
   private val mainInput = new CanvasInputHandler(mainCanvasID)
@@ -83,7 +79,7 @@ class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadGameID: St
   }
 
   private def saveGame(anchor: Anchor)(evt: MouseEvent): Unit = {
-    gameStateFactory.save(gameState) match {
+    GameState.save(gameState) match {
       case Left(error) => dom.window.alert(s"Error saving game: ${error.message}.")
       case Right(s) =>
         val file = new Blob(js.Array(s), BlobPropertyBag("text/plain"))
@@ -110,7 +106,7 @@ class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadGameID: St
 //              file.parent.deleteFile(file.name)
 //            }
             deleteUserCommands()
-            gameStateFactory.load(content, fs) match {
+            GameState.load(content, fs) match {
               case Left(error) => dom.window.alert(s"Error loading game: ${error.message}.")
               case Right(gs) =>
                 gameState = gs

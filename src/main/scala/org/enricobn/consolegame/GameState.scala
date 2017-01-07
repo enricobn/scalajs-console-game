@@ -1,17 +1,10 @@
 package org.enricobn.consolegame
 
-import org.enricobn.vfs.impl.VirtualAbsolutePath
-import org.enricobn.vfs.utils.Lift
-import org.enricobn.vfs.{IOError, VirtualFS, VirtualFile}
-
-import scala.collection.mutable
-import upickle.default._
-import Lift._
 import org.enricobn.consolegame.content.Messages
-
-import scala.collection.mutable.ArrayBuffer
-
-import IOError._
+import org.enricobn.vfs.IOError._
+import org.enricobn.vfs.impl.VirtualAbsolutePath
+import org.enricobn.vfs.{IOError, VirtualFS, VirtualFile}
+import upickle.default._
 
 import Messages._
 
@@ -38,7 +31,8 @@ case class FileContent[T <: AnyRef](file: VirtualFile, content: T) {
   def serialize() : SerializedContent[T] = SerializedContent(file.path, file.owner, file.permissions.octal, content)
 }
 
-object GameStateFactory {
+object GameState {
+
   def writeE[T1: Writer](value: T1) : Either[IOError, String] = {
     try {
       Right(write(value))
@@ -55,18 +49,10 @@ object GameStateFactory {
     }
 
   }
-}
-
-class GameStateFactory {
-  private val classRegistry = new mutable.HashMap[String, ContentSerializer[AnyRef]]()
-
-  def register[T <: AnyRef](contentSerializer: ContentSerializer[T]): Unit = {
-    classRegistry.put(contentSerializer.clazz.getName, contentSerializer.asInstanceOf[ContentSerializer[AnyRef]])
-  }
 
   def load(s: String, fs: VirtualFS) : Either[IOError, GameState] = {
     for {
-      ser <- GameStateFactory.readE[SerializableGameState](s).right
+      ser <- readE[SerializableGameState](s).right
       messages <- ser.messages.deserialize(fs).right
     } yield {
       val result = new GameState()
@@ -76,15 +62,8 @@ class GameStateFactory {
   }
 
   def save(gameState: GameState) : Either[IOError, String] = {
-//    Right(write(gameState.serialize()))
-    GameStateFactory.writeE[SerializableGameState](gameState.serialize())
+    writeE[SerializableGameState](gameState.serialize())
   }
-
-  private def serialize[T <: AnyRef](value: T, contentSerializer: ContentSerializer[T]) : Either[IOError, String] =
-    contentSerializer.toString(value)
-
-  private def deserialize[T <: AnyRef](s: String, contentSerializer: ContentSerializer[T]) : Either[IOError, T] =
-    contentSerializer.fromString(s)
 
 }
 
@@ -98,10 +77,6 @@ class GameState() {
   }
 
   def serialize() = SerializableGameState(messages.serialize())
-
-  def create() = {
-
-  }
 
   def delete() = {
     messages.file.parent.deleteFile(messages.file.name)
