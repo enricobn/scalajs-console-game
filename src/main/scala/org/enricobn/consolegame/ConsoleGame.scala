@@ -105,9 +105,10 @@ class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadGameID: St
           val content = r.result.toString
           vum.logUser("root", rootPassword)
           messagesShell.stopInteractiveCommands({() =>
-            gameState.contents.foreach(file => {
-              file.parent.deleteFile(file.name)
-            })
+            gameState.delete()
+//            gameState.contents.foreach(file => {
+//              file.parent.deleteFile(file.name)
+//            }
             deleteUserCommands()
             gameStateFactory.load(content, fs) match {
               case Left(error) => dom.window.alert(s"Error loading game: ${error.message}.")
@@ -168,7 +169,7 @@ class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadGameID: St
       messagesFile <- log.touch("messages.log").right
       _ <- (messagesFile.content = messages).toLeft(None).right
     } yield {
-      gameState.add(messagesFile)
+      gameState.setMessages(messagesFile, messages)
     }
 
     job.left.toOption

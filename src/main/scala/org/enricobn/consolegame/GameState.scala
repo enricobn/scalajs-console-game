@@ -7,14 +7,55 @@ import org.enricobn.vfs.{IOError, VirtualFS, VirtualFile}
 import scala.collection.mutable
 import upickle.default._
 import Lift._
+import org.enricobn.consolegame.content.Messages
 
 import scala.collection.mutable.ArrayBuffer
+
+import IOError._
+
+import Messages._
 
 /**
   * Created by enrico on 12/30/16.
   */
 
-case class SerializedContent(path: String, owner: String, permissions: Int, className: String, content: String)
+case class SerializedContent[T <: AnyRef](path: String, owner: String, permissions: Int, content: T) {
+  def deserialize(fs: VirtualFS) = {
+    val vPath = VirtualAbsolutePath(path)
+    for {
+      parent <- vPath.parent.toRight(IOError(s"No parent found for $path")).right
+      folderO <- fs.root.resolveFolder(parent.path).right
+      folder <- folderO.toRight(IOError(s"Cannot find folder $parent")).right
+      file <- folder.touch(vPath.name).right
+      _ <- (file.content = content).toLeft(None).right
+      _ <- file.chmod(permissions).toLeft(None).right
+      _ <- file.chown(owner).toLeft(None).right
+    } yield FileContent(file, content)
+  }
+}
+
+case class FileContent[T <: AnyRef](file: VirtualFile, content: T) {
+  def serialize() : SerializedContent[T] = SerializedContent(file.path, file.owner, file.permissions.octal, content)
+}
+
+object GameStateFactory {
+  def writeE[T1: Writer](value: T1) : Either[IOError, String] = {
+    try {
+      Right(write(value))
+    } catch {
+      case e: Throwable => e.getMessage.ioErrorE
+    }
+  }
+
+  def readE[T1: Reader](s: String) : Either[IOError, T1] = {
+    try {
+      Right(read[T1](s))
+    } catch {
+      case e: Throwable => e.getMessage.ioErrorE
+    }
+
+  }
+}
 
 class GameStateFactory {
   private val classRegistry = new mutable.HashMap[String, ContentSerializer[AnyRef]]()
@@ -24,48 +65,19 @@ class GameStateFactory {
   }
 
   def load(s: String, fs: VirtualFS) : Either[IOError, GameState] = {
-    val ser = read[Iterable[SerializedContent]](s)
-    val filesE = ser.map(c => {
-      val path = VirtualAbsolutePath(c.path)
-      for {
-        serializer <- classRegistry.get(c.className).toRight(IOError(s"Cannot find serializer for ${c.className}")).right
-        deserialized <- deserialize(c.content, serializer).right
-        parent <- path.parent.toRight(IOError(s"No parent found for $path")).right
-        folderO <- fs.root.resolveFolder(parent.path).right
-        folder <- folderO.toRight(IOError(s"Cannot find folder $parent")).right
-        file <- folder.touch(path.name).right
-        _ <- (file.content = deserialized).toLeft(None).right
-        _ <- file.chmod(c.permissions).toLeft(None).right
-        _ <- file.chown(c.owner).toLeft(None).right
-      } yield file
-    })
-
-    lift(filesE) match {
-      case Left(error) => Left(error)
-      case Right(files) =>
-        val gameState = new GameState()
-        files.foreach(gameState.add)
-        Right(gameState)
+    for {
+      ser <- GameStateFactory.readE[SerializableGameState](s).right
+      messages <- ser.messages.deserialize(fs).right
+    } yield {
+      val result = new GameState()
+      result.setMessages(messages.file, messages.content)
+      result
     }
   }
 
   def save(gameState: GameState) : Either[IOError, String] = {
-    val serE = gameState.contents.map {file =>
-      for {
-        content <- file.content.right
-        className <- Right(content.getClass.getName).right
-        serializer <- classRegistry.get(content.getClass.getName)
-          .toRight(IOError(s"Cannot find serializer for ${content.getClass.getName}")).right
-        serialized <- serialize(content, serializer).right
-      } yield {
-        SerializedContent(file.path, file.owner, file.permissions.octal, className, serialized)
-      }
-    }
-
-    lift(serE) match {
-      case Left(error) => Left(error)
-      case Right(ser) => Right(write(ser))
-    }
+//    Right(write(gameState.serialize()))
+    GameStateFactory.writeE[SerializableGameState](gameState.serialize())
   }
 
   private def serialize[T <: AnyRef](value: T, contentSerializer: ContentSerializer[T]) : Either[IOError, String] =
@@ -76,13 +88,23 @@ class GameStateFactory {
 
 }
 
-class GameState() {
-  private val _contents = new ArrayBuffer[VirtualFile]()
+case class SerializableGameState(messages: SerializedContent[Messages])
 
-  def add(file: VirtualFile): Unit = {
-    _contents += file
+class GameState() {
+  private var messages: FileContent[Messages] = null
+
+  def setMessages(file: VirtualFile, messages: Messages): Unit = {
+    this.messages = FileContent(file, messages)
   }
 
-  def contents = _contents.toList
+  def serialize() = SerializableGameState(messages.serialize())
+
+  def create() = {
+
+  }
+
+  def delete() = {
+    messages.file.parent.deleteFile(messages.file.name)
+  }
 
 }
