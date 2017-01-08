@@ -1,10 +1,31 @@
 package org.enricobn.consolegame.content
 
+import upickle.Js
+import upickle.default._
+
 import scala.collection.mutable
 
 /**
   * Created by enrico on 12/17/16.
   */
+object Warehouse {
+  implicit val writer = upickle.default.Writer[Warehouse] {
+    case t => writeJs(t.goods.toMap)
+  }
+
+  implicit val reader = upickle.default.Reader[Warehouse] {
+    case o: Js.Obj =>
+      val warehouse = new Warehouse()
+      o.value.foreach(v => {
+        v._2 match {
+          case Js.Num(d) => warehouse.add(v._1, d.toInt)
+          case _ => throw new IllegalArgumentException(v._2 + " is not a Json double.")
+        }
+      })
+      warehouse
+  }
+}
+
 class Warehouse {
   val goods = new mutable.HashMap[String, Int]()
 

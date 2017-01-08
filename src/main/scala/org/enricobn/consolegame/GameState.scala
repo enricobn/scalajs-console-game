@@ -1,12 +1,15 @@
 package org.enricobn.consolegame
 
-import org.enricobn.consolegame.content.Messages
+import org.enricobn.consolegame.content.{Messages, Warehouse}
 import org.enricobn.vfs.IOError._
 import org.enricobn.vfs.impl.VirtualAbsolutePath
 import org.enricobn.vfs.{IOError, VirtualFS, VirtualFile}
 import upickle.default._
-
 import Messages._
+import Warehouse._
+import org.enricobn.vfs.utils.Lift
+
+import scala.collection.mutable.ArrayBuffer
 
 /**
   * Created by enrico on 12/30/16.
@@ -54,9 +57,11 @@ object GameState {
     for {
       ser <- readE[SerializableGameState](s).right
       messages <- ser.messages.deserialize(fs).right
+      warehouses <- Lift.lift(ser.warehouses.map(_.deserialize(fs))).right
     } yield {
       val result = new GameState()
       result.setMessages(messages.file, messages.content)
+      warehouses.foreach(fc => result.add(fc.file, fc.content))
       result
     }
   }
@@ -65,21 +70,34 @@ object GameState {
     writeE[SerializableGameState](gameState.serialize())
   }
 
+  def delete(fileContent: FileContent[_]): Either[IOError, Boolean] = {
+    fileContent.file.parent.deleteFile(fileContent.file.name)
+  }
 }
 
-case class SerializableGameState(messages: SerializedContent[Messages])
+case class SerializableGameState(messages: SerializedContent[Messages], warehouses: Seq[SerializedContent[Warehouse]])
 
 class GameState() {
   private var messages: FileContent[Messages] = null
+  private val warehouses = new ArrayBuffer[FileContent[Warehouse]]
 
   def setMessages(file: VirtualFile, messages: Messages): Unit = {
     this.messages = FileContent(file, messages)
   }
 
-  def serialize() = SerializableGameState(messages.serialize())
+  def add(file: VirtualFile, warehouse: Warehouse): Unit = {
+    warehouses += FileContent(file, warehouse)
+  }
 
-  def delete() = {
-    messages.file.parent.deleteFile(messages.file.name)
+  def serialize() = SerializableGameState(messages.serialize(), warehouses.map(_.serialize()))
+
+  def delete() : Option[IOError] = {
+    val job = for {
+        _ <- messages.file.parent.deleteFile(messages.file.name).right
+        _ <- Lift.lift(warehouses.map(GameState.delete(_))).right
+      } yield 0
+
+    job.left.toOption
   }
 
 }

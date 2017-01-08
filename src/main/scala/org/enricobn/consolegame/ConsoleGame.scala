@@ -166,6 +166,7 @@ class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadGameID: St
       _ <- (messagesFile.content = messages).toLeft(None).right
     } yield {
       gameState.setMessages(messagesFile, messages)
+      gameState.add(warehouseFile, warehouse)
     }
 
     job.left.toOption
