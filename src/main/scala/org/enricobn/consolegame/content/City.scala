@@ -12,7 +12,7 @@ case class City(name: String, founded: LocalDate, statistics: Statistics) {
   override def toString: String =
     "Name: " + name + "\n"
     "Founded: " + founded + "\n"
-    "Statistics:\n" + statistics.last()
+    "Statistics:\n" + statistics.last
 }
 
 case class StatisticEntry(population: Int, employed: Int) {
@@ -30,6 +30,6 @@ class Statistics(initial: StatisticEntry) {
     history += entry
   }
 
-  def last() = history.last
+  def last: StatisticEntry = history.last
 
 }
