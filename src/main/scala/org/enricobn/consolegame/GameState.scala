@@ -7,7 +7,7 @@ import org.enricobn.vfs.{IOError, VirtualFS, VirtualFile}
 import upickle.default._
 import Messages._
 import Warehouse._
-import org.enricobn.vfs.utils.Lift
+import org.enricobn.vfs.utils.Utils
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -57,7 +57,7 @@ object GameState {
     for {
       ser <- readE[SerializableGameState](s).right
       messages <- ser.messages.deserialize(fs).right
-      warehouses <- Lift.lift(ser.warehouses.map(_.deserialize(fs))).right
+      warehouses <- Utils.lift(ser.warehouses.map(_.deserialize(fs))).right
     } yield {
       val result = new GameState()
       result.setMessages(messages.file, messages.content)
@@ -70,7 +70,7 @@ object GameState {
     writeE[SerializableGameState](gameState.serialize())
   }
 
-  def delete(fileContent: FileContent[_]): Either[IOError, Boolean] = {
+  def delete(fileContent: FileContent[_]): Option[IOError] = {
     fileContent.file.parent.deleteFile(fileContent.file.name)
   }
 }
@@ -92,12 +92,10 @@ class GameState() {
   def serialize() = SerializableGameState(messages.serialize(), warehouses.map(_.serialize()))
 
   def delete() : Option[IOError] = {
-    val job = for {
-        _ <- messages.file.parent.deleteFile(messages.file.name).right
-        _ <- Lift.lift(warehouses.map(GameState.delete(_))).right
-      } yield 0
-
-    job.left.toOption
+    messages.file.parent.deleteFile(messages.file.name)
+      .orElse(
+        Utils.mapFirstSome(warehouses, GameState.delete)
+      )
   }
 
 }

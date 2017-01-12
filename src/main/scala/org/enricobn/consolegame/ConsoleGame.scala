@@ -10,6 +10,7 @@ import org.enricobn.vfs.IOError
 import org.enricobn.vfs.IOError._
 import org.enricobn.vfs.impl.VirtualUsersManagerImpl
 import org.enricobn.vfs.inmemory.InMemoryFS
+import org.enricobn.vfs.utils.Utils
 import org.scalajs.dom
 import org.scalajs.dom.FileReader
 import org.scalajs.dom.html.{Anchor, Canvas, Input}
@@ -193,8 +194,8 @@ class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadGameID: St
     val job = for {
       usrBinO <- root.resolveFolder("/usr/bin").right
       usrBin <- usrBinO.toRight(IOError("Cannot find folder /usr/bin.")).right
-      _ <- usrBin.deleteFile(SellCommand.NAME).right
-      _ <- usrBin.deleteFile(MessagesCommand.NAME).right
+      _ <- Utils.optionToLeft(usrBin.deleteFile(SellCommand.NAME)).right
+      _ <- Utils.optionToLeft(usrBin.deleteFile(MessagesCommand.NAME)).right
     } yield None
 
     job.left.toOption
