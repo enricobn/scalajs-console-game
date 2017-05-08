@@ -5,7 +5,7 @@ import java.util.UUID
 import org.enricobn.consolegame.commands.{MessagesCommand, SellCommand}
 import org.enricobn.consolegame.content.{Messages, Warehouse}
 import org.enricobn.shell.impl._
-import org.enricobn.terminal.{CanvasInputHandler, CanvasTextScreen, TerminalImpl}
+import org.enricobn.terminal.{CanvasInputHandler, CanvasTextScreen, JSLogger, TerminalImpl}
 import org.enricobn.vfs.IOError
 import org.enricobn.vfs.IOError._
 import org.enricobn.vfs.impl.VirtualUsersManagerImpl
@@ -29,16 +29,17 @@ import scala.language.reflectiveCalls
 @JSExportAll
 class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadGameID: String, saveGameID: String) {
   private var gameState = new GameState()
-  private val mainScreen = new CanvasTextScreen(mainCanvasID)
+  private val logger = new JSLogger()
+  private val mainScreen = new CanvasTextScreen(mainCanvasID, logger)
   private val mainInput = new CanvasInputHandler(mainCanvasID)
-  private val mainTerminal = new TerminalImpl(mainScreen, mainInput, "typewriter-key-1.wav")
+  private val mainTerminal = new TerminalImpl(mainScreen, mainInput, logger, "typewriter-key-1.wav")
   private val mainCanvas = dom.document.getElementById(mainCanvasID).asInstanceOf[Canvas]
   mainCanvas.contentEditable = "true"
   mainCanvas.focus()
 
-  private val messagesScreen = new CanvasTextScreen(messagesCanvasID)
+  private val messagesScreen = new CanvasTextScreen(messagesCanvasID, logger)
   private val messagesInput = new CanvasInputHandler(messagesCanvasID)
-  private val messagesTerminal = new TerminalImpl(messagesScreen, messagesInput, "typewriter-key-1.wav")
+  private val messagesTerminal = new TerminalImpl(messagesScreen, messagesInput, logger, "typewriter-key-1.wav")
 
   private val rootPassword = UUID.randomUUID().toString
   private val vum = new VirtualUsersManagerImpl(rootPassword)

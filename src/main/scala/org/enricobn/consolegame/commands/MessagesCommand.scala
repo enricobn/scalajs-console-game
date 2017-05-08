@@ -39,22 +39,22 @@ class MessagesCommand(messages: Messages) extends VirtualCommand {
       }
     })
 
-    Right({
+    Right {
       new RunContext() {
 
-        override def running: Boolean = _running
+          override def running: Boolean = _running
 
-        override def interactive: Boolean = true
+          override def interactive: Boolean = true
 
-        override def update(): Unit = {
-          stack.foreach(message => {
-            shellOutput.write(message + "\n")
-            shellOutput.flush()
-          })
-          stack.clear()
+          override def update(): Unit = {
+            stack.foreach(message => {
+              shellOutput.write(message + "\n")
+              shellOutput.flush()
+            })
+            stack.clear()
+          }
         }
-      }
-    })
+    }
   }
 
   override def completion(line: String, currentFolder: VirtualFolder): Seq[String] = {
