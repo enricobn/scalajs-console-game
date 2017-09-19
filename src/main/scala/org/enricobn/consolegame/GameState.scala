@@ -20,8 +20,7 @@ case class SerializedContent[T <: AnyRef](path: String, owner: String, permissio
     val vPath = VirtualAbsolutePath(path)
     for {
       parent <- vPath.parent.toRight(IOError(s"No parent found for $path")).right
-      folderO <- fs.root.resolveFolder(parent.path).right
-      folder <- folderO.toRight(IOError(s"Cannot find folder $parent")).right
+      folder <- fs.root.resolveFolderOrError(parent.path, s"Cannot find folder $parent").right
       file <- folder.touch(vPath.name).right
       _ <- (file.content = content).toLeft(None).right
       _ <- file.chmod(permissions).toLeft(None).right

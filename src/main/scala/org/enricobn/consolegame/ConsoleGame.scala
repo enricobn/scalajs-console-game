@@ -7,7 +7,6 @@ import org.enricobn.consolegame.content.{Messages, Warehouse}
 import org.enricobn.shell.impl._
 import org.enricobn.terminal.{CanvasInputHandler, CanvasTextScreen, JSLogger, TerminalImpl}
 import org.enricobn.vfs.IOError
-import org.enricobn.vfs.IOError._
 import org.enricobn.vfs.impl.VirtualUsersManagerImpl
 import org.enricobn.vfs.inmemory.InMemoryFS
 import org.enricobn.vfs.utils.Utils
@@ -60,12 +59,11 @@ class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadGameID: St
       .orElse(initUserCommands())
       .orElse(vum.logUser("guest", guestPassword))
       .orElse({
-        root.resolveFolder("/home/guest") match {
+        root.resolveFolderOrError("/home/guest", "Cannot find /home/guest") match {
           case Left(error) => Some(error)
-          case Right(Some(guestFolder)) =>
+          case Right(guestFolder) =>
             shell.currentFolder = guestFolder
             None
-          case _ => "Cannot find /home/guest".ioErrorO
         }
       })
     match {
@@ -157,10 +155,8 @@ class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadGameID: St
     val messages = new Messages()
 
     val job = for {
-      logO <- root.resolveFolder("/var/log").right
-      log <- logO.toRight(IOError("Cannot find folder /var/log.")).right
-      guestO <- root.resolveFolder("/home/guest").right
-      guest <- guestO.toRight(IOError("Cannot find folder /home/guest.")).right
+      log <- root.resolveFolderOrError("/var/log", "Cannot find folder /var/log.").right
+      guest <- root.resolveFolderOrError("/home/guest", "Cannot find folder /home/guest.").right
       warehouseFile <- guest.touch("warehouse").right
       _ <- warehouseFile.chown("guest").toLeft(None).right
       _ <- (warehouseFile.content = warehouse).toLeft(None).right
@@ -177,12 +173,9 @@ class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadGameID: St
 
   private def initUserCommands(): Option[IOError] = {
     val job = for {
-      usrBinO <- root.resolveFolder("/usr/bin").right
-      usrBin <- usrBinO.toRight(IOError("Cannot find folder /usr/bin.")).right
-      logO <- root.resolveFolder("/var/log").right
-      log <- logO.toRight(IOError("Cannot find folder /var/log.")).right
-      messagesFileO <- log.findFile("messages.log").right
-      messagesFile <- messagesFileO.toRight(IOError("Cannot find file /var/log/messages.log.")).right
+      usrBin <- root.resolveFolderOrError("/usr/bin", "Cannot find folder /usr/bin.").right
+      log <- root.resolveFolderOrError("/var/log", "Cannot find folder /var/log.").right
+      messagesFile <- log.findFileOrError("messages.log", "Cannot find file /var/log/messages.log.").right
       content <- messagesFile.content.right
       _ <- context.createCommandFile(usrBin, new SellCommand(content.asInstanceOf[Messages])).right
       _ <- context.createCommandFile(usrBin, new MessagesCommand(content.asInstanceOf[Messages])).right
@@ -193,8 +186,7 @@ class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadGameID: St
 
   private def deleteUserCommands(): Option[IOError] = {
     val job = for {
-      usrBinO <- root.resolveFolder("/usr/bin").right
-      usrBin <- usrBinO.toRight(IOError("Cannot find folder /usr/bin.")).right
+      usrBin <- root.resolveFolderOrError("/usr/bin", "Cannot find folder /usr/bin.").right
       _ <- Utils.optionToLeft(usrBin.deleteFile(SellCommand.NAME)).right
       _ <- Utils.optionToLeft(usrBin.deleteFile(MessagesCommand.NAME)).right
     } yield None
