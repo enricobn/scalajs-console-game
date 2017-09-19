@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="UTF-8">
+        <title>Shell trade</title>
+    </head>
+
+    <body style="background:black;color:white;">
+        <!-- Include Scala.js compiled code -->
+        <script type="text/javascript" src="./target/scala-2.11/scalajs-console-game-1.0.0-SNAPSHOT.min.js"></script>
+        <!--script type="text/javascript" src="./target/scala-2.11/textscreen-jsdeps.js"></script-->
+
+        Load game: <input type="file" id="loadGame"/><br/>
+        Save game: <a href="" id="saveGame" target="_blank" download="consolegame.json">click here to save.</a><br/>
+
+        Messages:<br/>
+        <canvas id="messagesScreenCanvas" width="1024" height="110" style="border:1px solid #d3d3d3;">
+            Your browser does not support the HTML5 canvas tag.</canvas>
+
+        <br/>Shell:<br/>
+        <canvas id="mainScreenCanvas" width="1024" height="600" style="border:1px solid #d3d3d3;" tabindex="0">
+            Your browser does not support the HTML5 canvas tag.</canvas>
+
+        <script type="text/javascript">
+            var game = new ConsoleGame('mainScreenCanvas', 'messagesScreenCanvas', 'loadGame', 'saveGame');
+
+            game.start();
+        </script>
+
+    </body>
+</html>
