@@ -96,35 +96,38 @@ class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadGameID: St
 
       if (f != null) {
         val r = new FileReader()
-        r.onload = {e: UIEvent => {
-          println("loading...")
-          val content = r.result.toString
-          vum.logUser("root", rootPassword)
-          messagesShell.stopInteractiveCommands({() =>
-            gameState.delete()
-//            gameState.contents.foreach(file => {
-//              file.parent.deleteFile(file.name)
-//            }
-            deleteUserCommands()
-            GameState.load(content, fs) match {
-              case Left(error) => dom.window.alert(s"Error loading game: ${error.message}.")
-              case Right(gs) =>
-                gameState = gs
-            }
-            initUserCommands()
-            messagesShell.run(MessagesCommand.NAME) match {
-              case Left(error) => dom.window.alert(s"Error restaring messages: ${error.message}.")
-              case _ =>
-            }
-            vum.logUser("guest", guestPassword)
-            messagesTerminal.add(s"Game loaded from ${f.name}\n")
-            messagesTerminal.flush()
-            false
-          })
-        }}
+        r.onload = fileReaderOnLoad(f, r) _
         r.readAsText(f)
       }
   }
+
+  private def fileReaderOnLoad(f: File, r: FileReader)(e: UIEvent) {
+      println("loading...")
+      val content = r.result.toString
+      vum.logUser("root", rootPassword)
+      messagesShell.stopInteractiveCommands({ () =>
+        gameState.delete()
+        //            gameState.contents.foreach(file => {
+        //              file.parent.deleteFile(file.name)
+        //            }
+        deleteUserCommands()
+        GameState.load(content, fs) match {
+          case Left(error) => dom.window.alert(s"Error loading game: ${error.message}.")
+          case Right(gs) =>
+            gameState = gs
+        }
+        initUserCommands()
+        messagesShell.run(MessagesCommand.NAME) match {
+          case Left(error) => dom.window.alert(s"Error restaring messages: ${error.message}.")
+          case _ =>
+        }
+        vum.logUser("guest", guestPassword)
+        messagesTerminal.add(s"Game loaded from ${f.name}\n")
+        messagesTerminal.flush()
+        false
+      })
+  }
+
 
   private def initFS(): Option[IOError] = {
     val job = for {
