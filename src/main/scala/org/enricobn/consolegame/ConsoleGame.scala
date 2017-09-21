@@ -2,9 +2,8 @@ package org.enricobn.consolegame
 
 import java.util.UUID
 
-import org.enricobn.buyandsell.BuyAndSellGameStateFactory
 import org.enricobn.consolegame.commands.{MessagesCommand, SellCommand}
-import org.enricobn.consolegame.content.{Messages, Warehouse}
+import org.enricobn.consolegame.content.Messages
 import org.enricobn.shell.impl._
 import org.enricobn.terminal.{CanvasInputHandler, CanvasTextScreen, JSLogger, TerminalImpl}
 import org.enricobn.vfs.IOError
@@ -17,7 +16,7 @@ import org.scalajs.dom.html.{Anchor, Canvas, Input}
 import org.scalajs.dom.raw._
 
 import scala.scalajs.js
-import scala.scalajs.js.annotation.{JSExport, JSExportAll}
+import scala.scalajs.js.annotation.JSExportAll
 
 // to access members of structural types (new {}) without warnings
 import scala.language.reflectiveCalls
@@ -25,10 +24,9 @@ import scala.language.reflectiveCalls
 /**
   * Created by enrico on 12/8/16.
   */
-@JSExport(name = "ConsoleGame")
 @JSExportAll
-class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadGameID: String, saveGameID: String) {
-  private val gameStateFactory = BuyAndSellGameStateFactory
+abstract class ConsoleGame[GS <: GameState[GSS], GSS <: AnyRef, GSF <: GameStateFactory[GSS, GS]]
+    (mainCanvasID: String, messagesCanvasID: String, loadGameID: String, saveGameID: String, gameStateFactory: GSF) {
   private var gameState = gameStateFactory.create()
   private val logger = new JSLogger()
   private val mainScreen = new CanvasTextScreen(mainCanvasID, logger)
@@ -49,7 +47,7 @@ class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadGameID: St
   vum.addUser("guest", guestPassword)
 
   private val fs = new InMemoryFS(vum)
-  private val root = fs.root
+  protected val root = fs.root
 
   private val context = new VirtualShellContextImpl()
   private val shell = new VirtualShell(mainTerminal, vum, context, root)
@@ -57,7 +55,7 @@ class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadGameID: St
 
   def start() {
     initFS()
-      .orElse(newGame())
+      .orElse(newGame(gameState))
       .orElse(initUserCommands())
       .orElse(vum.logUser("guest", guestPassword))
       .orElse({
@@ -151,30 +149,7 @@ class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadGameID: St
     job.left.toOption
   }
 
-  private def newGame(): Option[IOError] = {
-    val warehouse = new Warehouse()
-    warehouse.add("gold", 2)
-    warehouse.add("silver", 10)
-    warehouse.add("bronze", 20)
-
-    val messages = new Messages()
-
-    val job = for {
-      log <- root.resolveFolderOrError("/var/log", "Cannot find folder /var/log.").right
-      guest <- root.resolveFolderOrError("/home/guest", "Cannot find folder /home/guest.").right
-      warehouseFile <- guest.touch("warehouse").right
-      _ <- warehouseFile.chown("guest").toLeft(None).right
-      _ <- (warehouseFile.content = warehouse).toLeft(None).right
-      messagesFile <- log.touch("messages.log").right
-      _ <- (messagesFile.content = messages).toLeft(None).right
-    } yield {
-      gameState.setMessages(messagesFile, messages)
-      gameState.add(warehouseFile, warehouse)
-    }
-
-    job.left.toOption
-
-  }
+  def newGame(gameState: GS): Option[IOError]
 
   private def initUserCommands(): Option[IOError] = {
     val job = for {
