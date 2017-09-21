@@ -2,6 +2,7 @@ package org.enricobn.consolegame
 
 import java.util.UUID
 
+import org.enricobn.buyandsell.BuyAndSellGameStateFactory
 import org.enricobn.consolegame.commands.{MessagesCommand, SellCommand}
 import org.enricobn.consolegame.content.{Messages, Warehouse}
 import org.enricobn.shell.impl._
@@ -27,7 +28,8 @@ import scala.language.reflectiveCalls
 @JSExport(name = "ConsoleGame")
 @JSExportAll
 class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadGameID: String, saveGameID: String) {
-  private var gameState = new GameState()
+  private val gameStateFactory = BuyAndSellGameStateFactory
+  private var gameState = gameStateFactory.create()
   private val logger = new JSLogger()
   private val mainScreen = new CanvasTextScreen(mainCanvasID, logger)
   private val mainInput = new CanvasInputHandler(mainCanvasID)
@@ -79,7 +81,7 @@ class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadGameID: St
   }
 
   private def saveGame(anchor: Anchor)(evt: MouseEvent): Unit = {
-    GameState.save(gameState) match {
+    gameStateFactory.serialize(gameState) match {
       case Left(error) => dom.window.alert(s"Error saving game: ${error.message}.")
       case Right(s) =>
         val file = new Blob(js.Array(s), BlobPropertyBag("text/plain"))
@@ -111,7 +113,7 @@ class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadGameID: St
         //              file.parent.deleteFile(file.name)
         //            }
         deleteUserCommands()
-        GameState.load(content, fs) match {
+        gameStateFactory.deserialize(content, fs) match {
           case Left(error) => dom.window.alert(s"Error loading game: ${error.message}.")
           case Right(gs) =>
             gameState = gs

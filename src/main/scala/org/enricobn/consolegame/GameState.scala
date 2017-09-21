@@ -1,21 +1,17 @@
 package org.enricobn.consolegame
 
-import org.enricobn.consolegame.content.{Messages, Warehouse}
 import org.enricobn.vfs.IOError._
 import org.enricobn.vfs.impl.VirtualAbsolutePath
 import org.enricobn.vfs.{IOError, VirtualFS, VirtualFile}
 import upickle.default._
-import Messages._
-import Warehouse._
 import org.enricobn.vfs.utils.Utils
-
-import scala.collection.mutable.ArrayBuffer
 
 /**
   * Created by enrico on 12/30/16.
   */
 
 case class SerializedContent[T <: AnyRef](path: String, owner: String, permissions: Int, content: T) {
+
   def deserialize(fs: VirtualFS) = {
     val vPath = VirtualAbsolutePath(path)
     for {
@@ -27,10 +23,23 @@ case class SerializedContent[T <: AnyRef](path: String, owner: String, permissio
       _ <- file.chown(owner).toLeft(None).right
     } yield FileContent(file, content)
   }
+
 }
 
 case class FileContent[T <: AnyRef](file: VirtualFile, content: T) {
+
   def serialize() : SerializedContent[T] = SerializedContent(file.path, file.owner, file.permissions.octal, content)
+
+}
+
+trait GameStateFactory[S <: AnyRef,T <: GameState[S]] {
+
+  def deserialize(s: String, fs: VirtualFS) : Either[IOError, T]
+
+  def serialize(gameState: T) : Either[IOError, String]
+
+  def create() : T
+
 }
 
 object GameState {
@@ -52,49 +61,18 @@ object GameState {
 
   }
 
-  def load(s: String, fs: VirtualFS) : Either[IOError, GameState] = {
-    for {
-      ser <- readE[SerializableGameState](s).right
-      messages <- ser.messages.deserialize(fs).right
-      warehouses <- Utils.lift(ser.warehouses.map(_.deserialize(fs))).right
-    } yield {
-      val result = new GameState()
-      result.setMessages(messages.file, messages.content)
-      warehouses.foreach(fc => result.add(fc.file, fc.content))
-      result
-    }
-  }
-
-  def save(gameState: GameState) : Either[IOError, String] = {
-    writeE[SerializableGameState](gameState.serialize())
-  }
-
-  def delete(fileContent: FileContent[_]): Option[IOError] = {
-    fileContent.file.parent.deleteFile(fileContent.file.name)
+  // TODO move in VirtualFile?
+  def delete(file: VirtualFile): Option[IOError] = {
+    file.parent.deleteFile(file.name)
   }
 }
 
-case class SerializableGameState(messages: SerializedContent[Messages], warehouses: Seq[SerializedContent[Warehouse]])
+trait GameState[S <: AnyRef] {
 
-class GameState() {
-  private var messages: FileContent[Messages] = null
-  private val warehouses = new ArrayBuffer[FileContent[Warehouse]]
+  def files : Seq[VirtualFile]
 
-  def setMessages(file: VirtualFile, messages: Messages): Unit = {
-    this.messages = FileContent(file, messages)
-  }
+  def delete() : Option[IOError] = Utils.mapFirstSome(files, GameState.delete)
 
-  def add(file: VirtualFile, warehouse: Warehouse): Unit = {
-    warehouses += FileContent(file, warehouse)
-  }
-
-  def serialize() = SerializableGameState(messages.serialize(), warehouses.map(_.serialize()))
-
-  def delete() : Option[IOError] = {
-    messages.file.parent.deleteFile(messages.file.name)
-      .orElse(
-        Utils.mapFirstSome(warehouses, GameState.delete)
-      )
-  }
+  def toSerializable: S
 
 }
