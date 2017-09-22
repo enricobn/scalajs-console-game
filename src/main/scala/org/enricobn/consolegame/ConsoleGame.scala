@@ -2,14 +2,14 @@ package org.enricobn.consolegame
 
 import java.util.UUID
 
-import org.enricobn.consolegame.commands.{MessagesCommand, SellCommand}
-import org.enricobn.consolegame.content.Messages
+import org.enricobn.consolegame.commands.MessagesCommand
+import org.enricobn.shell.VirtualShellContext
 import org.enricobn.shell.impl._
 import org.enricobn.terminal.{CanvasInputHandler, CanvasTextScreen, JSLogger, TerminalImpl}
-import org.enricobn.vfs.IOError
 import org.enricobn.vfs.impl.VirtualUsersManagerImpl
 import org.enricobn.vfs.inmemory.InMemoryFS
 import org.enricobn.vfs.utils.Utils
+import org.enricobn.vfs.{IOError, VirtualFile, VirtualFolder}
 import org.scalajs.dom
 import org.scalajs.dom.FileReader
 import org.scalajs.dom.html.{Anchor, Canvas, Input}
@@ -33,41 +33,38 @@ abstract class ConsoleGame[GS <: GameState[GSS], GSS <: AnyRef, GSF <: GameState
   private val mainInput = new CanvasInputHandler(mainCanvasID)
   private val mainTerminal = new TerminalImpl(mainScreen, mainInput, logger, "typewriter-key-1.wav")
   private val mainCanvas = dom.document.getElementById(mainCanvasID).asInstanceOf[Canvas]
-  mainCanvas.contentEditable = "true"
-  mainCanvas.focus()
-
   private val messagesScreen = new CanvasTextScreen(messagesCanvasID, logger)
   private val messagesInput = new CanvasInputHandler(messagesCanvasID)
   private val messagesTerminal = new TerminalImpl(messagesScreen, messagesInput, logger, "typewriter-key-1.wav")
-
   private val rootPassword = UUID.randomUUID().toString
   private val vum = new VirtualUsersManagerImpl(rootPassword)
-
   private val guestPassword = UUID.randomUUID().toString
-  vum.addUser("guest", guestPassword)
-
   private val fs = new InMemoryFS(vum)
-  protected val root = fs.root
-
-  private val context = new VirtualShellContextImpl()
+  protected val context: VirtualShellContext = new VirtualShellContextImpl()
+  protected val root: VirtualFolder = fs.root
   private val shell = new VirtualShell(mainTerminal, vum, context, root)
   private val messagesShell = new VirtualShell(messagesTerminal, vum, context, root)
 
+  private var userCommands : Seq[VirtualFile] = _
+
   def start() {
-    initFS()
-      .orElse(newGame(gameState))
-      .orElse(initUserCommands())
-      .orElse(vum.logUser("guest", guestPassword))
-      .orElse({
-        root.resolveFolderOrError("/home/guest", "Cannot find /home/guest") match {
-          case Left(error) => Some(error)
-          case Right(guestFolder) =>
-            shell.currentFolder = guestFolder
-            None
-        }
-      })
-    match {
-      case Some(error) => dom.window.alert(s"Error initializing: ${error.message}")
+    mainCanvas.contentEditable = "true"
+    mainCanvas.focus()
+
+    val init = for {
+      _ <- vum.addUser("guest", guestPassword).toLeft(()).right
+      _ <- initFS().right
+      _ <- newGame(gameState).toLeft(()).right
+      userCommands <- createUserCommands().right
+      guestFolder <- root.resolveFolderOrError("/home/guest", "Cannot find /home/guest").right
+      _ <- vum.logUser("guest", guestPassword).toLeft(()).right
+    } yield {
+      this.userCommands = userCommands
+      shell.currentFolder = guestFolder
+    }
+
+    init match {
+      case Left(error) => dom.window.alert(s"Error initializing: ${error.message}")
       case _ =>
         shell.start()
         messagesShell.startWithCommand(MessagesCommand.NAME)
@@ -116,7 +113,6 @@ abstract class ConsoleGame[GS <: GameState[GSS], GSS <: AnyRef, GSF <: GameState
           case Right(gs) =>
             gameState = gs
         }
-        initUserCommands()
         messagesShell.run(MessagesCommand.NAME) match {
           case Left(error) => dom.window.alert(s"Error restaring messages: ${error.message}.")
           case _ =>
@@ -128,9 +124,8 @@ abstract class ConsoleGame[GS <: GameState[GSS], GSS <: AnyRef, GSF <: GameState
       })
   }
 
-
-  private def initFS(): Option[IOError] = {
-    val job = for {
+  private def initFS(): Either[IOError,Unit] =
+    for {
       bin <- root.mkdir("bin").right
       usr <- root.mkdir("usr").right
       var_ <- root.mkdir("var").right
@@ -146,32 +141,10 @@ abstract class ConsoleGame[GS <: GameState[GSS], GSS <: AnyRef, GSF <: GameState
       context.addToPath(usrBin)
     }
 
-    job.left.toOption
-  }
-
   def newGame(gameState: GS): Option[IOError]
 
-  private def initUserCommands(): Option[IOError] = {
-    val job = for {
-      usrBin <- root.resolveFolderOrError("/usr/bin", "Cannot find folder /usr/bin.").right
-      log <- root.resolveFolderOrError("/var/log", "Cannot find folder /var/log.").right
-      messagesFile <- log.findFileOrError("messages.log", "Cannot find file /var/log/messages.log.").right
-      content <- messagesFile.content.right
-      _ <- context.createCommandFile(usrBin, new SellCommand(content.asInstanceOf[Messages])).right
-      _ <- context.createCommandFile(usrBin, new MessagesCommand(content.asInstanceOf[Messages])).right
-    } yield None
+  def createUserCommands(): Either[IOError,Seq[VirtualFile]]
 
-    job.left.toOption
-  }
-
-  private def deleteUserCommands(): Option[IOError] = {
-    val job = for {
-      usrBin <- root.resolveFolderOrError("/usr/bin", "Cannot find folder /usr/bin.").right
-      _ <- Utils.optionToLeft(usrBin.deleteFile(SellCommand.NAME)).right
-      _ <- Utils.optionToLeft(usrBin.deleteFile(MessagesCommand.NAME)).right
-    } yield None
-
-    job.left.toOption
-  }
+  private def deleteUserCommands(): Option[IOError] = Utils.mapFirstSome(userCommands, GameState.delete)
 
 }
