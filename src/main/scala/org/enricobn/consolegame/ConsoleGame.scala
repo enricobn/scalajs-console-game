@@ -25,8 +25,8 @@ import scala.language.reflectiveCalls
   * Created by enrico on 12/8/16.
   */
 @JSExportAll
-abstract class ConsoleGame[GS <: GameState[GSS], GSS <: AnyRef, GSF <: GameStateFactory[GSS, GS]]
-    (mainCanvasID: String, messagesCanvasID: String, loadGameID: String, saveGameID: String, gameStateFactory: GSF) {
+abstract class ConsoleGame[GS <: GameState[GSS], GSS <: AnyRef]
+    (mainCanvasID: String, messagesCanvasID: String, loadGameID: String, saveGameID: String, gameStateFactory: GameStateFactory[GSS, GS]) {
   private var gameState = gameStateFactory.create()
   private val logger = new JSLogger()
   private val mainScreen = new CanvasTextScreen(mainCanvasID, logger)
@@ -99,28 +99,33 @@ abstract class ConsoleGame[GS <: GameState[GSS], GSS <: AnyRef, GSF <: GameState
   }
 
   private def fileReaderOnLoad(f: File, r: FileReader)(e: UIEvent) {
-      println("loading...")
       val content = r.result.toString
       vum.logUser("root", rootPassword)
       messagesShell.stopInteractiveCommands({ () =>
-        gameState.delete()
-        //            gameState.contents.foreach(file => {
-        //              file.parent.deleteFile(file.name)
-        //            }
-        deleteUserCommands()
-        gameStateFactory.deserialize(content, fs) match {
-          case Left(error) => dom.window.alert(s"Error loading game: ${error.message}.")
-          case Right(gs) =>
-            gameState = gs
+
+        val run = for {
+          _ <- gameState.delete().toLeft(()).right
+          _ <- deleteUserCommands().toLeft(()).right
+          gameState <- gameStateFactory.deserialize(content, fs).right
+          userCommands <- createUserCommands().right
+          showPrompt <- messagesShell.run(MessagesCommand.NAME).right
+          _ <- vum.logUser("guest", guestPassword).toLeft(()).right
+        } yield {
+          this.gameState = gameState
+          this.userCommands = userCommands
+
+          messagesTerminal.add(s"Game loaded from ${f.name}\n")
+          messagesTerminal.flush()
+
+          showPrompt
         }
-        messagesShell.run(MessagesCommand.NAME) match {
-          case Left(error) => dom.window.alert(s"Error restaring messages: ${error.message}.")
-          case _ =>
+
+        run match {
+          case Left(error) =>
+            dom.window.alert(s"Error loading game: ${error.message}.")
+            false
+          case Right(showPrompt) => showPrompt
         }
-        vum.logUser("guest", guestPassword)
-        messagesTerminal.add(s"Game loaded from ${f.name}\n")
-        messagesTerminal.flush()
-        false
       })
   }
 

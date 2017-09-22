@@ -10,7 +10,7 @@ import scala.scalajs.js.annotation.{JSExport, JSExportAll}
 @JSExport(name = "BuyAndSell")
 @JSExportAll
 class BuyAndSell(mainCanvasID: String, messagesCanvasID: String, loadGameID: String, saveGameID: String)
-  extends ConsoleGame[BuyAndSellGameState, BuyAndSellSerializableGameState, BuyAndSellGameStateFactory.type](mainCanvasID, messagesCanvasID, loadGameID, saveGameID, BuyAndSellGameStateFactory)
+  extends ConsoleGame[BuyAndSellGameState, BuyAndSellSerializableGameState](mainCanvasID, messagesCanvasID, loadGameID, saveGameID, BuyAndSellGameStateFactory)
 {
   override def newGame(gameState: BuyAndSellGameState): Option[IOError] = {
     val warehouse = new Warehouse()
