@@ -1,4 +1,4 @@
-package org.enricobn.consolegame.content
+package org.enricobn.buyandsell.content
 
 import upickle.Js
 import upickle.default._

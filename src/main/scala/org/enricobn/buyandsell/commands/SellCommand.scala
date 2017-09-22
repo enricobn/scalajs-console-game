@@ -1,6 +1,7 @@
-package org.enricobn.consolegame.commands
+package org.enricobn.buyandsell.commands
 
-import org.enricobn.consolegame.content.{Messages, Warehouse}
+import org.enricobn.buyandsell.content.Warehouse
+import org.enricobn.consolegame.content.Messages
 import org.enricobn.shell._
 import org.enricobn.shell.impl._
 import org.enricobn.vfs.IOError._

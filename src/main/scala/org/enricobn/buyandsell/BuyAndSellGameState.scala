@@ -1,8 +1,9 @@
 package org.enricobn.buyandsell
 
+import org.enricobn.buyandsell.content.Warehouse
 import org.enricobn.consolegame.GameState.readE
 import org.enricobn.consolegame.{FileContent, GameState, GameStateFactory, SerializedContent}
-import org.enricobn.consolegame.content.{Messages, Warehouse}
+import org.enricobn.consolegame.content.Messages
 import org.enricobn.vfs.{IOError, VirtualFS, VirtualFile}
 import org.enricobn.vfs.utils.Utils
 

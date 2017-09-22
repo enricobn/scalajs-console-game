@@ -1,8 +1,10 @@
 package org.enricobn.buyandsell
 
+import org.enricobn.buyandsell.commands.SellCommand
+import org.enricobn.buyandsell.content.Warehouse
 import org.enricobn.consolegame.ConsoleGame
-import org.enricobn.consolegame.commands.{MessagesCommand, SellCommand}
-import org.enricobn.consolegame.content.{Messages, Warehouse}
+import org.enricobn.consolegame.commands.MessagesCommand
+import org.enricobn.consolegame.content.Messages
 import org.enricobn.vfs.{IOError, VirtualFile}
 
 import scala.scalajs.js.annotation.{JSExport, JSExportAll}
