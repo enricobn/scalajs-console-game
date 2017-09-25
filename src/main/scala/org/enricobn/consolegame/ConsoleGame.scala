@@ -86,27 +86,15 @@ abstract class ConsoleGame[GS <: GameState[GSS], GSS <: AnyRef]
       (serializer.clazz, serializer)
     ).toMap
 
-    val fileContentsE: Either[IOError, List[(VirtualFile, AnyRef)]] = lift(
-      allFiles.map(file => (file, file.content))
-    )
-
-    val fileContentSerializersE: Either[IOError, List[((VirtualFile, AnyRef), Serializer)]] =
+    val job =
       for {
-        fileContents <- fileContentsE.right
-      } yield {
-        val result: List[((VirtualFile, AnyRef), Option[Serializer])] =
-          fileContents.map {case (file, content) => ((file,content), serializers.get(content.getClass))}
-        val filtered = allSome(result)
-        filtered
-      }
-
-    val job = for {
-      fileContentSerializers <- fileContentSerializersE.right
-      serializedContents <- lift(
-        fileContentSerializers.map { case ((file, content), serializer: Serializer) =>
-                  ((file, serializer), serializer.serialize(content))
-        }
-      ).right
+        fileContents <- lift(
+          allFiles.map(file => (file, file.content))
+        ).right
+        fileContentSerializers <- Right(allSome(fileContents.map {case (file, content) => ((file,content), serializers.get(content.getClass))})).right
+        serializedContents <- lift(
+          fileContentSerializers.map { case ((file, content), serializer: Serializer) => ((file, serializer), serializer.serialize(content))
+        }).right
       ser <- GameState.writeE(
         serializedContents.map { case ((file, serializer), ser: String) =>
           SerializedFile(file.path, file.owner, file.permissions.octal, serializer.name, ser)
@@ -290,6 +278,7 @@ abstract class ConsoleGame[GS <: GameState[GSS], GSS <: AnyRef]
     files
   }
 
+  // TODO create scalajs-vfs VirtualFolder.getAllFiles
   // TODO error
   private def getAllFiles(folder: VirtualFolder) : Set[VirtualFile] =
     (for {
@@ -302,6 +291,7 @@ abstract class ConsoleGame[GS <: GameState[GSS], GSS <: AnyRef]
       case Right(files) => files
     }
 
+  // TODO move to library ?
   private def lift[T,TL,TR](xs: GenTraversableOnce[(T, Either[TL,TR])]) : Either[TL,List[(T,TR)]] =
     xs.foldRight(Right(List.empty[(T,TR)]) : Either[TL,List[(T,TR)]]) { (value, result) => {
       result match {
@@ -314,6 +304,7 @@ abstract class ConsoleGame[GS <: GameState[GSS], GSS <: AnyRef]
       }
     }}
 
+  // TODO move to library ?
   private def lift[T,T1](xs: GenTraversableOnce[(T, Option[T1])]) : Option[List[(T,T1)]] =
     xs.foldRight(Some(List.empty) : Option[List[(T,T1)]])((value, result) => {
       result match {
@@ -326,6 +317,7 @@ abstract class ConsoleGame[GS <: GameState[GSS], GSS <: AnyRef]
       }
     })
 
+  // TODO move to library ?
   private def allSome[T,T1](xs: GenTraversableOnce[(T, Option[T1])]) : List[(T,T1)] =
     xs.foldRight(List.empty : List[(T,T1)])((value, result) => {
         value match {
@@ -334,7 +326,9 @@ abstract class ConsoleGame[GS <: GameState[GSS], GSS <: AnyRef]
         }
     })
 
+  // TODO create scalajs-vfs VirtualFolder.resolveFile
   private def getFile(path: String): Either[IOError, VirtualFile] = {
+    // TODO filesystem path separator
     val slash = path.lastIndexOf('/')
 
     val parent =

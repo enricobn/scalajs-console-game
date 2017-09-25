@@ -10,6 +10,7 @@ NEXT
 - on branch serialize-fs
   - serialize the folders
   - create a new filesystem and restore folders and files, excluding commands
+  - serializers: check for duplicate name
 
 DONE
 -----
