@@ -95,11 +95,11 @@ abstract class ConsoleGame[GS <: GameState[GSS], GSS <: AnyRef]
         serializedContents <- lift(
           fileContentSerializers.map { case ((file, content), serializer: Serializer) => ((file, serializer), serializer.serialize(content))
         }).right
-      ser <- GameState.writeE(
-        serializedContents.map { case ((file, serializer), ser: String) =>
-          SerializedFile(file.path, file.owner, file.permissions.octal, serializer.name, ser)
-        }
-      ).right
+        ser <- GameState.writeE(
+          serializedContents.map { case ((file, serializer), ser: String) =>
+            SerializedFile(file.path, file.owner, file.permissions.octal, serializer.name, ser)
+          }
+        ).right
     } yield {
       val file = new Blob(js.Array(ser), BlobPropertyBag("text/plain"))
       anchor.href = URL.createObjectURL(file)

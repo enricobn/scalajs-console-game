@@ -35,7 +35,7 @@ class SellCommand(private val messages: Messages) extends VirtualCommand {
 
   override def run(shell: VirtualShell, shellInput: ShellInput, shellOutput: ShellOutput, args: String*) : Either[IOError, RunContext] = {
     arguments.parse(shell.currentFolder, args: _*) match {
-      case Left(message) => Left(new IOError("sell: " + message))
+      case Left(message) => ("sell: " + message).ioErrorE
       case Right(values) =>
         val file = values.head.asInstanceOf[VirtualFile]
         if (!shell.vum.checkWriteAccess(file)) {
