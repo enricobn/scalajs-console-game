@@ -1,0 +1,17 @@
+DOING
+------
+- on branch serialize-fs
+  - rewrite of serialization: I'm trying to serialize the whole filesystem, excluding commands:
+    - I have done the serialization of files and I have restored the file content
+
+
+NEXT
+-----
+- on branch serialize-fs
+  - serialize the folders
+  - create a new filesystem and restore folders and files, excluding commands
+
+DONE
+-----
+- on branch serialize-fs
+  - serialization of files and restoration of the file's content on the already existent files

@@ -32,9 +32,9 @@ case class FileContent[T <: AnyRef](file: VirtualFile, content: T) {
 
 }
 
-trait GameStateFactory[S <: AnyRef,T <: GameState[S]] {
+trait GameStateFactory[T <: GameState[S], S <: AnyRef] {
 
-  def deserialize(s: String, fs: VirtualFS) : Either[IOError, T]
+  def deserialize(s: S, fs: VirtualFS) : Either[IOError, T]
 
   def serialize(gameState: T) : Either[IOError, String]
 

@@ -1,10 +1,10 @@
 package org.enricobn.buyandsell
 
 import org.enricobn.buyandsell.commands.SellCommand
-import org.enricobn.buyandsell.content.Warehouse
-import org.enricobn.consolegame.ConsoleGame
+import org.enricobn.buyandsell.content.{Warehouse, WarehouseSerializer}
 import org.enricobn.consolegame.commands.MessagesCommand
 import org.enricobn.consolegame.content.Messages
+import org.enricobn.consolegame.{ConsoleGame, Serializer}
 import org.enricobn.vfs.{IOError, VirtualFile}
 
 import scala.scalajs.js.annotation.{JSExport, JSExportAll}
@@ -14,24 +14,18 @@ import scala.scalajs.js.annotation.{JSExport, JSExportAll}
 class BuyAndSell(mainCanvasID: String, messagesCanvasID: String, loadGameID: String, saveGameID: String)
   extends ConsoleGame[BuyAndSellGameState, BuyAndSellSerializableGameState](mainCanvasID, messagesCanvasID, loadGameID, saveGameID, BuyAndSellGameStateFactory)
 {
-  override def newGame(gameState: BuyAndSellGameState): Option[IOError] = {
+  override def initUserGameState(gameState: BuyAndSellGameState): Option[IOError] = {
     val warehouse = new Warehouse()
     warehouse.add("gold", 2)
     warehouse.add("silver", 10)
     warehouse.add("bronze", 20)
 
-    val messages = new Messages()
-
     val job = for {
-      log <- root.resolveFolderOrError("/var/log", "Cannot find folder /var/log.").right
       guest <- root.resolveFolderOrError("/home/guest", "Cannot find folder /home/guest.").right
       warehouseFile <- guest.touch("warehouse").right
       _ <- warehouseFile.chown("guest").toLeft(None).right
       _ <- (warehouseFile.content = warehouse).toLeft(None).right
-      messagesFile <- log.touch("messages.log").right
-      _ <- (messagesFile.content = messages).toLeft(None).right
     } yield {
-      gameState.setMessages(messagesFile, messages)
       gameState.add(warehouseFile, warehouse)
     }
 
@@ -39,7 +33,7 @@ class BuyAndSell(mainCanvasID: String, messagesCanvasID: String, loadGameID: Str
 
   }
 
-  def createUserCommands(): Either[IOError,Seq[VirtualFile]]  =
+  def createUserCommands(): Either[IOError,Seq[VirtualFile]] =
     for {
       usrBin <- root.resolveFolderOrError("/usr/bin", "Cannot find folder /usr/bin.").right
       log <- root.resolveFolderOrError("/var/log", "Cannot find folder /var/log.").right
@@ -48,5 +42,8 @@ class BuyAndSell(mainCanvasID: String, messagesCanvasID: String, loadGameID: Str
       sellCommand <- context.createCommandFile(usrBin, new SellCommand(messages.asInstanceOf[Messages])).right
       messagesCommand <- context.createCommandFile(usrBin, new MessagesCommand(messages.asInstanceOf[Messages])).right
     } yield List(sellCommand,messagesCommand)
+
+  override def getSerializers() : Seq[Serializer] =
+    List(WarehouseSerializer)
 
 }

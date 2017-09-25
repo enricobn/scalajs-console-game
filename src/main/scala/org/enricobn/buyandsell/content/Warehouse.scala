@@ -1,9 +1,12 @@
 package org.enricobn.buyandsell.content
 
+import org.enricobn.consolegame.{GameState, Serializer}
+import org.enricobn.vfs.IOError
 import upickle.Js
 import upickle.default._
 
 import scala.collection.mutable
+import scala.scalajs.js
 
 /**
   * Created by enrico on 12/17/16.
@@ -54,4 +57,39 @@ class Warehouse {
   override def toString: String = {
     goods.map(v => v._1 + "\t\t" + v._2).mkString("\n")
   }
+}
+
+object WarehouseSerializer extends Serializer {
+  private val writer = upickle.default.Writer[Warehouse](t => writeJs(t.goods.toMap))
+
+  private val reader = upickle.default.Reader[Warehouse] {
+    case o: Js.Obj =>
+      val warehouse = new Warehouse()
+      o.value.foreach(v => {
+        v._2 match {
+          case Js.Num(d) => warehouse.add(v._1, d.toInt)
+          case _ => throw new IllegalArgumentException(v._2 + " is not a Json double.")
+        }
+      })
+      warehouse
+  }
+
+  override val name = "Warehouse"
+
+  override val clazz: Class[_] = classOf[Warehouse]
+
+  override def serialize(content: AnyRef): Either[IOError, String] =
+    content match {
+      case warehouse: Warehouse =>
+        Right(writer.write(warehouse).toString())
+      case _ => Left(IOError("Not an instance of Warehouse."))
+    }
+
+  override def deserialize(ser: String): Either[IOError, Warehouse] =
+    try {
+      Right(reader.read(upickle.json.read(ser)))
+    } catch {
+      case e: Exception => Left(IOError(e.getMessage))
+    }
+
 }
