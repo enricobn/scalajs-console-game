@@ -62,9 +62,12 @@ object GameState {
   }
 
   // TODO move in VirtualFile?
-  def delete(file: VirtualFile): Option[IOError] = {
-    file.parent.deleteFile(file.name)
-  }
+  def delete(file: VirtualFile): Option[IOError] =
+    file.parent match {
+      case Some(folder) => folder.deleteFile(file.name)
+      case _ => Some(IOError("No parent"))
+    }
+
 }
 
 trait GameState[S <: AnyRef] {

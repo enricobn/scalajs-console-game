@@ -17,24 +17,19 @@ object SellCommand {
 class SellCommand(private val messages: Messages) extends VirtualCommand {
   import SellCommand._
 
-  private val arguments = new VirtualCommandArguments(List(
-    new FileArgument("wareHouseFile", true) {
-      override def complete(currentFolder: VirtualFolder, value: String, previousArguments: Seq[Any]): Seq[String] = {
-        fileNameProposals(currentFolder, value)
-      }
-    },
+  private val arguments = new VirtualCommandArguments(
+    new FileArgument("wareHouseFile", true, Some(getWarehouseFile(_).isDefined)),
     new StringArgument("good", true) {
-      override def complete(currentFolder: VirtualFolder, value: String, previousArguments: Seq[Any]): Seq[String] = {
+      override def complete(currentFolder: VirtualFolder, value: String, previousArguments: Seq[Any]) =
         goodsProposals(previousArguments.head.asInstanceOf[VirtualFile], value)
-      }
     },
-    new IntArgument("qty", true)
-  ))
+    IntArgument("qty", true)
+  )
 
   override def getName: String = NAME
 
   override def run(shell: VirtualShell, shellInput: ShellInput, shellOutput: ShellOutput, args: String*) : Either[IOError, RunContext] = {
-    arguments.parse(shell.currentFolder, args: _*) match {
+    arguments.parse(shell.currentFolder, "sell", args: _*) match {
       case Left(message) => ("sell: " + message).ioErrorE
       case Right(values) =>
         val file = values.head.asInstanceOf[VirtualFile]
@@ -67,11 +62,6 @@ class SellCommand(private val messages: Messages) extends VirtualCommand {
       case Some(goods) => goods.goods.keySet.filter(_.startsWith(prefix)).toSeq
       case _ => Seq.empty
     }
-  }
-
-  // TODO relativeFile
-  private def fileNameProposals(currentFolder: VirtualFolder, prefix: String) : Seq[String] = {
-    Completions.resolveFiles(currentFolder, prefix, getWarehouseFile(_).isDefined)
   }
 
   private def getWarehouseFile(file: VirtualFile) : Option[Warehouse] =

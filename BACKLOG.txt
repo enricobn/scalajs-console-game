@@ -1,15 +1,13 @@
 DOING
 ------
 - on branch serialize-fs
-  - rewrite of serialization: I'm trying to serialize the whole filesystem, excluding commands:
-    - I have done the serialization of files and I have restored the file content
-
+  - testing the serialization / deserialization
 
 NEXT
 -----
 - on branch serialize-fs
-  - serialize the folders
-  - create a new filesystem and restore folders and files, excluding commands
+  - set the new fs only after deserialization is complete. Attention: some methods relies on current fs and root,
+    make them static?
   - serializers: check for duplicate name
   - ConsoleGame.initUserGameState rename to init and pass the home folder. It returns Option[IOError]. It must be called
     with current user as guest, no need for changing the owner
@@ -20,4 +18,7 @@ NEXT
 DONE
 -----
 - on branch serialize-fs
+  - now serialization / deserialization of whole fs (excluding commands) seems to work
+  - serialize/deserialize the folders
+  - create a new filesystem and restore folders and files, excluding commands
   - serialization of files and restoration of the file's content on the already existent files

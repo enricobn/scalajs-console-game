@@ -10,7 +10,7 @@ import org.enricobn.terminal.{CanvasInputHandler, CanvasTextScreen, JSLogger, Te
 import org.enricobn.vfs.impl.VirtualUsersManagerImpl
 import org.enricobn.vfs.inmemory.InMemoryFS
 import org.enricobn.vfs.utils.Utils
-import org.enricobn.vfs.{IOError, VirtualFile, VirtualFolder}
+import org.enricobn.vfs._
 import org.scalajs.dom
 import org.scalajs.dom.FileReader
 import org.scalajs.dom.html.{Anchor, Canvas, Input}
@@ -44,8 +44,8 @@ abstract class ConsoleGame[GS <: GameState[GSS], GSS <: AnyRef]
   private val guestPassword = UUID.randomUUID().toString
   private var fs = new InMemoryFS(vum)
   protected val context: VirtualShellContext = new VirtualShellContextImpl()
-  protected val root: VirtualFolder = fs.root
-  private val shell = new VirtualShell(mainTerminal, vum, context, root)
+  protected def root: VirtualFolder = fs.root
+  private var shell = new VirtualShell(mainTerminal, vum, context, root)
   private val messagesShell = new VirtualShell(messagesTerminal, vum, context, root)
 
   private var userCommands : Seq[VirtualFile] = _
@@ -93,13 +93,13 @@ abstract class ConsoleGame[GS <: GameState[GSS], GSS <: AnyRef]
         ).right
         fileContentSerializers <- Right(allSome(fileContents.map {case (file, content) => ((file,content), serializers.get(content.getClass))})).right
         serializedContents <- lift(
-          fileContentSerializers.map { case ((file, content), serializer: Serializer) => ((file, serializer), serializer.serialize(content))
+          fileContentSerializers.map { case ((file, content), serializer) => ((file, serializer), serializer.serialize(content))
         }).right
-        ser <- GameState.writeE(
-          serializedContents.map { case ((file, serializer), ser: String) =>
-            SerializedFile(file.path, file.owner, file.permissions.octal, serializer.name, ser)
-          }
-        ).right
+        files <- Right(serializedContents.map { case ((file, serializer), ser) =>
+          SerializedFile(file.path, file.owner, file.permissions.octal, serializer.name, ser)
+        }).right
+        folders <- Right(getAllFolders(root).map(folder => SerializedFolder(folder.path, folder.owner, folder.permissions.octal))).right
+        ser <- GameState.writeE(SerializedFS(folders, files)).right
     } yield {
       val file = new Blob(js.Array(ser), BlobPropertyBag("text/plain"))
       anchor.href = URL.createObjectURL(file)
@@ -150,23 +150,42 @@ abstract class ConsoleGame[GS <: GameState[GSS], GSS <: AnyRef]
       (serializer.name, serializer)
     ).toMap
 
-    val setContent = for {
-      serializedFiles <- GameState.readE[List[SerializedFile]](resultContent).right
-      serializedAndSerializers <- lift(serializedFiles.map(serializedFile => {
-        val maybeSerializer = serializers.get(serializedFile.serializerName)
-        if (maybeSerializer.isDefined)
-          (serializedFile, Right(maybeSerializer.get))
-        else
-          (serializedFile, Left(IOError(s"Cannot find serializer with name=${serializedFile.serializerName}")))
+    fs = new InMemoryFS(vum)
+
+    val deserialize = for {
+      serializedFS <- GameState.readE[SerializedFS](resultContent).right
+      // I sort them so I crete them in order
+      _ <- Utils.lift(serializedFS.folders.sortBy(_.path).map(serializedFolder => {
+        println(serializedFolder.path)
+        for {
+          // TODO the path is absolute, I must make all intermediate folders
+          folder <- mkdir(serializedFolder.path).right
+          _ <- folder.chown(serializedFolder.owner).toLeft(()).right
+          result <- folder.chmod(serializedFolder.permissions).toLeft(()).right
+        } yield {
+          result
+        }
+      })).right
+      serializedAndSerializers <- lift(serializedFS.files.map(serializedFile => {
+        val serializerE = serializers.get(serializedFile.serializerName)
+          .toRight(IOError(s"Cannot find serializer with name=${serializedFile.serializerName}"))
+        (serializedFile, serializerE)
       })).right
       serializedAndSerializerAndContent <- lift(serializedAndSerializers.map {case (serializedFile, serializer) =>
+        // TODO errors
+        val path = VirtualPath(serializedFile.path)
+        val file = path.parentFragments.get.toFolder(root).right.get.touch(path.name).right.get
+        println(file)
+        file.chown(serializedFile.owner)
+        file.chmod(serializedFile.permissions)
+        println(serializedFile.ser)
         ((serializedFile, serializer), serializer.deserialize(serializedFile.ser))
       }).right
       contentFiles <- lift(serializedAndSerializerAndContent.map {case ((serializedFile, serializer), content) =>
         (content, getFile(serializedFile.path))
       }).right
       result <- Utils.mapFirstSome[(AnyRef, VirtualFile), IOError](contentFiles,
-        { case (content, file) => file.content = content}
+        { case (content, file) => file.content = content }
       ).toLeft(()).right
     } yield {
       result
@@ -174,7 +193,7 @@ abstract class ConsoleGame[GS <: GameState[GSS], GSS <: AnyRef]
 
     messagesShell.stopInteractiveCommands({ () =>
       val run = for {
-        _ <- setContent.right
+        _ <- deserialize.right
         showPrompt <- messagesShell.run(MessagesCommand.NAME).right
       } yield {
         messagesTerminal.add(s"Game loaded from ${f.name}\n")
@@ -188,7 +207,16 @@ abstract class ConsoleGame[GS <: GameState[GSS], GSS <: AnyRef]
           println(error.message)
           dom.window.alert("Error loading game. See javascript console for details.")
           false
-        case Right(showPrompt) => showPrompt
+        case Right(showPrompt) => {
+          // TODO even the fs must be set here, but some methods takes the current fs and root
+          shell.stop()
+          shell = new VirtualShell(mainTerminal, vum, context, root)
+          // TODO error
+          shell.currentFolder = root.resolveFolderOrError("/home/guest", "Cannot find /home/guest").right.get
+          mainTerminal.add("\u001b[2J\u001b[1;1H") // clear screen an reset cursor to 1, 1
+          shell.start()
+          showPrompt
+        }
       }
 
     })
@@ -291,6 +319,19 @@ abstract class ConsoleGame[GS <: GameState[GSS], GSS <: AnyRef]
       case Right(files) => files
     }
 
+  // TODO create scalajs-vfs VirtualFolder.getAllFolders
+  // TODO error
+  private def getAllFolders(folder: VirtualFolder) : List[VirtualFolder] =
+    (for {
+      folders <- folder.folders.right
+    } yield {
+      folders.toList ++ folders.flatMap(getAllFolders)
+    }) match {
+      case Left(error) => List()
+      case Right(folders) => folders
+    }
+
+
   // TODO move to library ?
   private def lift[T,TL,TR](xs: GenTraversableOnce[(T, Either[TL,TR])]) : Either[TL,List[(T,TR)]] =
     xs.foldRight(Right(List.empty[(T,TR)]) : Either[TL,List[(T,TR)]]) { (value, result) => {
@@ -326,28 +367,20 @@ abstract class ConsoleGame[GS <: GameState[GSS], GSS <: AnyRef]
         }
     })
 
-  // TODO create scalajs-vfs VirtualFolder.resolveFile
   private def getFile(path: String): Either[IOError, VirtualFile] = {
-    // TODO filesystem path separator
-    val slash = path.lastIndexOf('/')
+    VirtualPath(path).toFile(root)
+  }
 
-    val parent =
-      if (slash < 0)
-        "."
-      else
-       path.substring(0, slash)
+  private def mkdir(path: String) : Either[IOError, VirtualFolder] = {
+    val virtualPath = VirtualPath(path)
 
-    val fileName =
-      if (slash < 0)
-        path
-      else
-        path.substring(slash + 1)
-
-    for {
-      folder <- root.resolveFolderOrError(parent, s"Cannot find path $parent").right
-      file <- folder.findFileOrError(fileName, s"Cannot find file $path").right
-    } yield file
+    virtualPath.parentFragments.get.toFolder(fs.root) match {
+      case error@Left(_) => error
+      case Right(parent) => parent.mkdir(virtualPath.name)
+    }
   }
 }
 
 private case class SerializedFile(path: String, owner: String, permissions: Int, serializerName: String, ser: String)
+private case class SerializedFolder(path: String, owner: String, permissions: Int)
+private case class SerializedFS(folders: List[SerializedFolder], files: List[SerializedFile])
