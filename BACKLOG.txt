@@ -13,7 +13,6 @@ NEXT
     with current user as guest, no need for changing the owner
   - ConsoleGame.createUserCommands returns a seq of tuple (commandName, command) (or an Either of)
   - create addMessage command and use it in SellCommand to add messages
-  - delete all GameState stuff
 
 DONE
 -----

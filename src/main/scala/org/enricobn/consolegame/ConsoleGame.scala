@@ -27,10 +27,7 @@ import scala.language.reflectiveCalls
   * Created by enrico on 12/8/16.
   */
 @JSExportAll
-abstract class ConsoleGame[GS <: GameState[GSS], GSS <: AnyRef]
-    (mainCanvasID: String, messagesCanvasID: String, loadGameID: String, saveGameID: String, gameStateFactory: GameStateFactory[GS, GSS]) {
-  private var globalGameState = GlobalGameStateFactory.create()
-  private var userGameState = gameStateFactory.create()
+abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadGameID: String, saveGameID: String) {
   private val logger = new JSLogger()
   private val mainScreen = new CanvasTextScreen(mainCanvasID, logger)
   private val mainInput = new CanvasInputHandler(mainCanvasID)
@@ -54,11 +51,10 @@ abstract class ConsoleGame[GS <: GameState[GSS], GSS <: AnyRef]
     mainCanvas.contentEditable = "true"
     mainCanvas.focus()
 
-    val init = for {
+    val runInit = for {
       _ <- vum.addUser("guest", guestPassword).toLeft(()).right
       _ <- initFS().right
-      _ <- initUserGameState(userGameState).toLeft(()).right
-      _ <- initGlobalGameState().toLeft(()).right
+      _ <- init().toLeft(()).right
       userCommands <- createUserCommands().right
       guestFolder <- root.resolveFolderOrError("/home/guest", "Cannot find /home/guest").right
       _ <- vum.logUser("guest", guestPassword).toLeft(()).right
@@ -67,7 +63,7 @@ abstract class ConsoleGame[GS <: GameState[GSS], GSS <: AnyRef]
       shell.currentFolder = guestFolder
     }
 
-    init match {
+    runInit match {
       case Left(error) => dom.window.alert(s"Error initializing: ${error.message}")
       case _ =>
         shell.start()
@@ -80,8 +76,6 @@ abstract class ConsoleGame[GS <: GameState[GSS], GSS <: AnyRef]
   }
 
   private def saveGame(anchor: Anchor)(evt: MouseEvent): Unit = {
-//    val globalSer = globalGameState.toSerializable
-//    val userSer = userGameState.toSerializable
     val serializers: Map[Class[_], Serializer] = (getSerializers() ++ geyGlobalSerializers).map(serializer =>
       (serializer.clazz, serializer)
     ).toMap
@@ -99,7 +93,7 @@ abstract class ConsoleGame[GS <: GameState[GSS], GSS <: AnyRef]
           SerializedFile(file.path, file.owner, file.permissions.octal, serializer.name, ser)
         }).right
         folders <- Right(getAllFolders(root).map(folder => SerializedFolder(folder.path, folder.owner, folder.permissions.octal))).right
-        ser <- GameState.writeE(SerializedFS(folders, files)).right
+        ser <- UpickleUtils.writeE(SerializedFS(folders, files)).right
     } yield {
       val file = new Blob(js.Array(ser), BlobPropertyBag("text/plain"))
       anchor.href = URL.createObjectURL(file)
@@ -113,18 +107,6 @@ abstract class ConsoleGame[GS <: GameState[GSS], GSS <: AnyRef]
       case _ =>
     }
 
-
-//    val ser = GlobalAndUserSerializableGameState(globalSer, userSer)
-//
-//    GameState.writeE(ser) match {
-//      case Left(error) => dom.window.alert(s"Error saving game: ${error.message}.")
-//      case Right(s) =>
-//        val file = new Blob(js.Array(s), BlobPropertyBag("text/plain"))
-//        anchor.href = URL.createObjectURL(file)
-//        anchor.pathname = "consolegame.json"
-//        messagesTerminal.add(s"Game saved.\n")
-//        messagesTerminal.flush()
-//    }
   }
 
   private def geyGlobalSerializers = {
@@ -153,10 +135,9 @@ abstract class ConsoleGame[GS <: GameState[GSS], GSS <: AnyRef]
     fs = new InMemoryFS(vum)
 
     val deserialize = for {
-      serializedFS <- GameState.readE[SerializedFS](resultContent).right
+      serializedFS <- UpickleUtils.readE[SerializedFS](resultContent).right
       // I sort them so I crete them in order
       _ <- Utils.lift(serializedFS.folders.sortBy(_.path).map(serializedFolder => {
-        println(serializedFolder.path)
         for {
           // TODO the path is absolute, I must make all intermediate folders
           folder <- mkdir(serializedFolder.path).right
@@ -175,10 +156,8 @@ abstract class ConsoleGame[GS <: GameState[GSS], GSS <: AnyRef]
         // TODO errors
         val path = VirtualPath(serializedFile.path)
         val file = path.parentFragments.get.toFolder(root).right.get.touch(path.name).right.get
-        println(file)
         file.chown(serializedFile.owner)
         file.chmod(serializedFile.permissions)
-        println(serializedFile.ser)
         ((serializedFile, serializer), serializer.deserialize(serializedFile.ser))
       }).right
       contentFiles <- lift(serializedAndSerializerAndContent.map {case ((serializedFile, serializer), content) =>
@@ -204,7 +183,6 @@ abstract class ConsoleGame[GS <: GameState[GSS], GSS <: AnyRef]
 
       run match {
         case Left(error) =>
-          println(error.message)
           dom.window.alert("Error loading game. See javascript console for details.")
           false
         case Right(showPrompt) => {
@@ -221,36 +199,6 @@ abstract class ConsoleGame[GS <: GameState[GSS], GSS <: AnyRef]
 
     })
 
-//      messagesShell.stopInteractiveCommands({ () =>
-//
-//        val run = for {
-//          _ <- userGameState.delete().toLeft(()).right
-//          _ <- globalGameState.delete().toLeft(()).right
-//          _ <- deleteUserCommands().toLeft(()).right
-//          globalAndUser <- GameState.readE[GlobalAndUserSerializableGameState](content).right
-//          userGameState <- gameStateFactory.deserialize(globalAndUser.user, fs).right
-//          globalGameState <- GlobalGameStateFactory.deserialize(globalAndUser.global, fs).right
-//          userCommands <- createUserCommands().right
-//          showPrompt <- messagesShell.run(MessagesCommand.NAME).right
-//          _ <- vum.logUser("guest", guestPassword).toLeft(()).right
-//        } yield {
-//          this.userGameState = userGameState
-//          this.globalGameState = globalGameState
-//          this.userCommands = userCommands
-//
-//          messagesTerminal.add(s"Game loaded from ${f.name}\n")
-//          messagesTerminal.flush()
-//
-//          showPrompt
-//        }
-//
-//        run match {
-//          case Left(error) =>
-//            dom.window.alert(s"Error loading game: ${error.message}.")
-//            false
-//          case Right(showPrompt) => showPrompt
-//        }
-//      })
     // TODO Error
     vum.logUser("guest", guestPassword)
   }
@@ -272,31 +220,29 @@ abstract class ConsoleGame[GS <: GameState[GSS], GSS <: AnyRef]
       context.addToPath(usrBin)
     }
 
-  def initUserGameState(gameState: GS): Option[IOError]
+  def initGame(): Option[IOError]
 
-  def createUserCommands(): Either[IOError,Seq[VirtualFile]]
-
-  def getSerializers() : Seq[Serializer]
-
-  private def deleteUserCommands(): Option[IOError] = Utils.mapFirstSome(userCommands, GameState.delete)
-
-  private def initGlobalGameState(): Option[IOError] = {
-
+  private def init(): Option[IOError] = {
     val messages = new Messages()
 
     val job = for {
       log <- root.resolveFolderOrError("/var/log", "Cannot find folder /var/log.").right
       messagesFile <- log.touch("messages.log").right
-      _ <- (messagesFile.content = messages).toLeft(None).right
-    } yield {
-      globalGameState.setMessages(messagesFile, messages)
-    }
+      result <- (messagesFile.content = messages).toLeft(None).right
+    } yield result
 
-    job.left.toOption
+    job match {
+      case Left(error) => Some(error)
+      case _ => initGame()
+    }
 
   }
 
-  private case class GlobalAndUserSerializableGameState(global: GlobalSerializableGameState, user: GSS)
+  def createUserCommands(): Either[IOError,Seq[VirtualFile]]
+
+  def getSerializers() : Seq[Serializer]
+
+  private def deleteUserCommands(): Option[IOError] = Utils.mapFirstSome(userCommands, ConsoleGame.delete)
 
   // TODO error
   private def allFiles: Set[VirtualFile] = {
@@ -379,6 +325,16 @@ abstract class ConsoleGame[GS <: GameState[GSS], GSS <: AnyRef]
       case Right(parent) => parent.mkdir(virtualPath.name)
     }
   }
+}
+
+object ConsoleGame {
+  // TODO move in VirtualFile?
+  def delete(file: VirtualFile): Option[IOError] =
+    file.parent match {
+      case Some(folder) => folder.deleteFile(file.name)
+      case _ => Some(IOError("No parent"))
+    }
+
 }
 
 private case class SerializedFile(path: String, owner: String, permissions: Int, serializerName: String, ser: String)

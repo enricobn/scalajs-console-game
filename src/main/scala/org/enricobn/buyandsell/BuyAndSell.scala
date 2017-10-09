@@ -12,9 +12,9 @@ import scala.scalajs.js.annotation.{JSExport, JSExportAll}
 @JSExport(name = "BuyAndSell")
 @JSExportAll
 class BuyAndSell(mainCanvasID: String, messagesCanvasID: String, loadGameID: String, saveGameID: String)
-  extends ConsoleGame[BuyAndSellGameState, BuyAndSellSerializableGameState](mainCanvasID, messagesCanvasID, loadGameID, saveGameID, BuyAndSellGameStateFactory)
-{
-  override def initUserGameState(gameState: BuyAndSellGameState): Option[IOError] = {
+extends ConsoleGame(mainCanvasID, messagesCanvasID, loadGameID, saveGameID) {
+
+  override def initGame(): Option[IOError] = {
     val warehouse = new Warehouse()
     warehouse.add("gold", 2)
     warehouse.add("silver", 10)
@@ -24,10 +24,8 @@ class BuyAndSell(mainCanvasID: String, messagesCanvasID: String, loadGameID: Str
       guest <- root.resolveFolderOrError("/home/guest", "Cannot find folder /home/guest.").right
       warehouseFile <- guest.touch("warehouse").right
       _ <- warehouseFile.chown("guest").toLeft(None).right
-      _ <- (warehouseFile.content = warehouse).toLeft(None).right
-    } yield {
-      gameState.add(warehouseFile, warehouse)
-    }
+      result <- (warehouseFile.content = warehouse).toLeft(None).right
+    } yield result
 
     job.left.toOption
 
