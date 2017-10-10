@@ -4,7 +4,7 @@ import java.util.UUID
 
 import org.enricobn.consolegame.commands.MessagesCommand
 import org.enricobn.consolegame.content.{Messages, MessagesSerializer}
-import org.enricobn.shell.VirtualShellContext
+import org.enricobn.shell.{VirtualCommand, VirtualShellContext}
 import org.enricobn.shell.impl._
 import org.enricobn.terminal.{CanvasInputHandler, CanvasTextScreen, JSLogger, TerminalImpl}
 import org.enricobn.vfs.impl.VirtualUsersManagerImpl
@@ -43,7 +43,7 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadG
   protected val context: VirtualShellContext = new VirtualShellContextImpl()
   protected def root: VirtualFolder = fs.root
   private var shell = new VirtualShell(mainTerminal, vum, context, root)
-  private val messagesShell = new VirtualShell(messagesTerminal, vum, context, root)
+  private var messagesShell = new VirtualShell(messagesTerminal, vum, context, root)
 
   private var userCommands : Seq[VirtualFile] = _
 
@@ -54,12 +54,16 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadG
     val runInit = for {
       _ <- vum.addUser("guest", guestPassword).toLeft(()).right
       _ <- initFS().right
-      _ <- init().toLeft(()).right
-      userCommands <- createUserCommands().right
+      usrBin <- root.resolveFolderOrError("/usr/bin", "Cannot find /usr/bin").right
+      userCommands <- getAllCommands().right
+      userCommandFiles <- Utils.lift(userCommands.map(command => {
+        context.createCommandFile(usrBin, command)
+      })).right
       guestFolder <- root.resolveFolderOrError("/home/guest", "Cannot find /home/guest").right
+      _ <- onNewGame().toLeft(()).right
       _ <- vum.logUser("guest", guestPassword).toLeft(()).right
     } yield {
-      this.userCommands = userCommands
+      this.userCommands = userCommandFiles
       shell.currentFolder = guestFolder
     }
 
@@ -187,6 +191,9 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadG
           false
         case Right(showPrompt) => {
           // TODO even the fs must be set here, but some methods takes the current fs and root
+          messagesShell.stop()
+          messagesShell = new VirtualShell(messagesTerminal, vum, context, root)
+          messagesShell.startWithCommand(MessagesCommand.NAME)
           shell.stop()
           shell = new VirtualShell(mainTerminal, vum, context, root)
           // TODO error
@@ -220,25 +227,26 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadG
       context.addToPath(usrBin)
     }
 
-  def initGame(): Option[IOError]
+  def onNewGame(): Option[IOError]
 
-  private def init(): Option[IOError] = {
-    val messages = new Messages()
+  def getCommands(): Either[IOError, Seq[VirtualCommand]]
 
-    val job = for {
-      log <- root.resolveFolderOrError("/var/log", "Cannot find folder /var/log.").right
-      messagesFile <- log.touch("messages.log").right
-      result <- (messagesFile.content = messages).toLeft(None).right
-    } yield result
-
-    job match {
-      case Left(error) => Some(error)
-      case _ => initGame()
-    }
-
+  private def getAllCommands() : Either[IOError, Seq[VirtualCommand]] = {
+    for {
+      defCommands <- getDefaultCommands().right
+      commands <- getCommands().right
+    } yield defCommands ++ commands
   }
 
-  def createUserCommands(): Either[IOError,Seq[VirtualFile]]
+  private def getDefaultCommands(): Either[IOError, Seq[VirtualCommand]] = {
+    val messages = new Messages()
+
+    for {
+      log <- root.resolveFolderOrError("/var/log", "Cannot find folder /var/log.").right
+      messagesFile <- log.touch("messages.log").right
+      _ <- (messagesFile.content = messages).toLeft(None).right
+    } yield Seq(new MessagesCommand())
+  }
 
   def getSerializers() : Seq[Serializer]
 

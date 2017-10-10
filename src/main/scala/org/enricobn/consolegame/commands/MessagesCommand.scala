@@ -13,9 +13,17 @@ import scala.collection.mutable
   */
 object MessagesCommand {
   val NAME = "messages"
+  val messagesPath = VirtualPath("/var/log/messages.log")
+
+  def getMessages(currentFolder: VirtualFolder) : Either[IOError, Messages] = {
+    for {
+      messagesFile <- messagesPath.toFile(currentFolder).right
+      messages <- messagesFile.contentAs(classOf[Messages]).right
+    } yield messages
+  }
 }
 
-class MessagesCommand(messages: Messages) extends VirtualCommand {
+class MessagesCommand() extends VirtualCommand {
   import MessagesCommand._
 
   override def getName: String = NAME
@@ -28,33 +36,38 @@ class MessagesCommand(messages: Messages) extends VirtualCommand {
     }
     var _running = true
 
-    messages.subscribe(messagesSubscriber)
-
-    shellInput.subscribe(in => {
-      // Ctrl-C
-      if (in == 3.toChar.toString) {
-        _running = false
-        stack.clear()
-        messages.removeSubscription(messagesSubscriber)
-      }
-    })
-
-    Right {
-      new RunContext() {
-
-          override def running: Boolean = _running
-
-          override def interactive: Boolean = true
-
-          override def update(): Unit = {
-            stack.foreach(message => {
-              shellOutput.write(message + "\n")
-              shellOutput.flush()
-            })
+    getMessages(shell.currentFolder) match {
+      case Left(error) => Left(error)
+      case Right(messages) =>
+        shellInput.subscribe(in => {
+          // Ctrl-C
+          if (in == 3.toChar.toString) {
+            _running = false
             stack.clear()
+            messages.removeSubscription(messagesSubscriber)
+          }
+        })
+
+        messages.subscribe(messagesSubscriber)
+
+        Right {
+          new RunContext() {
+
+            override def running: Boolean = _running
+
+            override def interactive: Boolean = true
+
+            override def update(): Unit = {
+              stack.foreach(message => {
+                shellOutput.write(message + "\n")
+                shellOutput.flush()
+              })
+              stack.clear()
+            }
           }
         }
     }
+
   }
 
   override def completion(line: String, currentFolder: VirtualFolder): Seq[String] = {

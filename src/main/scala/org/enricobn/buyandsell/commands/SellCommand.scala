@@ -1,7 +1,7 @@
 package org.enricobn.buyandsell.commands
 
 import org.enricobn.buyandsell.content.Warehouse
-import org.enricobn.consolegame.content.Messages
+import org.enricobn.consolegame.commands.MessagesCommand
 import org.enricobn.shell._
 import org.enricobn.shell.impl._
 import org.enricobn.vfs.IOError._
@@ -14,7 +14,7 @@ object SellCommand {
   val NAME = "sell"
 }
 
-class SellCommand(private val messages: Messages) extends VirtualCommand {
+class SellCommand() extends VirtualCommand {
   import SellCommand._
 
   private val arguments = new VirtualCommandArguments(
@@ -40,7 +40,8 @@ class SellCommand(private val messages: Messages) extends VirtualCommand {
         val qty = values(2).asInstanceOf[Int]
 
         for {
-          warehouse <- contentAs(file, classOf[Warehouse]).right
+          warehouse <- file.contentAs(classOf[Warehouse]).right
+          messages <- MessagesCommand.getMessages(shell.currentFolder).right
           runContext <- warehouse.sell(good, qty)
             .toLeft({
               messages.add("sell " + qty + " of " + good)
@@ -59,14 +60,14 @@ class SellCommand(private val messages: Messages) extends VirtualCommand {
 
   private def goodsProposals(file: VirtualFile, prefix: String) : Seq[String] = {
     getWarehouseFile(file) match {
-      case Some(goods) => goods.goods.keySet.filter(_.startsWith(prefix)).toSeq
+      case Some(warehouse) => warehouse.goods.keySet.filter(_.startsWith(prefix)).toSeq
       case _ => Seq.empty
     }
   }
 
   private def getWarehouseFile(file: VirtualFile) : Option[Warehouse] =
     file.content.fold(_ => None, {
-      case goods: Warehouse => Some(goods)
+      case warehouse: Warehouse => Some(warehouse)
       case _ => None
     })
 
