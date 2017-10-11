@@ -33,23 +33,18 @@ class SellCommand() extends VirtualCommand {
       case Left(message) => ("sell: " + message).ioErrorE
       case Right(values) =>
         val file = values.head.asInstanceOf[VirtualFile]
-        if (!shell.vum.checkWriteAccess(file)) {
-          return "Access denied.".ioErrorE
-        }
         val good = values(1).asInstanceOf[String]
         val qty = values(2).asInstanceOf[Int]
 
         for {
           warehouse <- file.contentAs(classOf[Warehouse]).right
           messages <- MessagesCommand.getMessages(shell.currentFolder).right
-          runContext <- warehouse.sell(good, qty)
-            .toLeft({
-              messages.add("sell " + qty + " of " + good)
-              new RunContext()
-            })
-            .left
-            .map(new IOError(_))
-            .left
+          newWarehouse <- warehouse.sell(good, qty).right
+          _ <- (file.content = newWarehouse).toLeft(()).right
+          runContext <- {
+            messages.add("sell " + qty + " of " + good)
+            Right(new RunContext()).right
+          }
         } yield runContext
     }
   }

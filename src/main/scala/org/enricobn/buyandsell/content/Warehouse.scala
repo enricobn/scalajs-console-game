@@ -1,37 +1,31 @@
 package org.enricobn.buyandsell.content
 
-import org.enricobn.consolegame.Serializer
+import org.enricobn.consolegame.{Serializer, UpickleUtils}
 import org.enricobn.vfs.IOError
-import upickle.Js
-import upickle.default._
-
-import scala.collection.mutable
+import org.enricobn.vfs.IOError._
 
 /**
   * Created by enrico on 12/17/16.
   */
-class Warehouse {
-  val goods = new mutable.HashMap[String, Int]()
+case class Warehouse(goods: Map[String, Int]) {
 
-  def add(good: String, qty:Int): Unit = {
+  def add(good: String, qty:Int): Warehouse = {
     goods.get(good) match {
-      case Some(v) => goods.put(good, qty + v)
-      case _ => goods.put(good, qty)
+      case Some(v) => Warehouse(goods + (good -> (qty + v)))
+      case _ => Warehouse(goods + (good -> qty))
     }
   }
 
-  def sell(good: String, qty:Int): Option[String] = {
+  def sell(good: String, qty:Int): Either[IOError,Warehouse] = {
     goods.get(good) match {
       case Some(v) if v > qty =>
-        goods.put(good, v - qty)
-        None
+        Right(Warehouse(goods + (good -> (v - qty))))
       case Some(v) if v == qty =>
-        goods.remove(good)
-        None
+        Right(Warehouse(goods - good))
       case Some(v) =>
-        Some("Invalid qty.")
+        "Invalid qty.".ioErrorE
       case _ =>
-        Some("Cannot find good.")
+        "Cannot find good.".ioErrorE
     }
   }
 
@@ -41,36 +35,13 @@ class Warehouse {
 }
 
 object WarehouseSerializer extends Serializer {
-  private val writer = upickle.default.Writer[Warehouse](t => writeJs(t.goods.toMap))
-
-  private val reader = upickle.default.Reader[Warehouse] {
-    case o: Js.Obj =>
-      val warehouse = new Warehouse()
-      o.value.foreach(v => {
-        v._2 match {
-          case Js.Num(d) => warehouse.add(v._1, d.toInt)
-          case _ => throw new IllegalArgumentException(v._2 + " is not a Json double.")
-        }
-      })
-      warehouse
-  }
-
-  override val name = "Warehouse"
-
-  override val clazz: Class[_] = classOf[Warehouse]
+  override val clazz: Class[Warehouse] = classOf[Warehouse]
 
   override def serialize(content: AnyRef): Either[IOError, String] =
     content match {
-      case warehouse: Warehouse =>
-        Right(writer.write(warehouse).toString())
-      case _ => Left(IOError("Not an instance of Warehouse."))
+      case warehouse: Warehouse => UpickleUtils.writeE(warehouse)
+      case _ => Left(IOError("Not an instance of " + name))
     }
 
-  override def deserialize(ser: String): Either[IOError, Warehouse] =
-    try {
-      Right(reader.read(upickle.json.read(ser)))
-    } catch {
-      case e: Exception => Left(IOError(e.getMessage))
-    }
-
+  override def deserialize(ser: String): Either[IOError, Warehouse] = UpickleUtils.readE[Warehouse](ser)
 }

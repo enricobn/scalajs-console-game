@@ -4,9 +4,9 @@ import org.enricobn.vfs.IOError
 
 trait Serializer {
 
-  val name: String
-
   val clazz: Class[_]
+
+  def name: String = clazz.getName
 
   def serialize(content: AnyRef) : Either[IOError,String]
 

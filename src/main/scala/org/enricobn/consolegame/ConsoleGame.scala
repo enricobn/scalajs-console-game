@@ -80,7 +80,7 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadG
   }
 
   private def saveGame(anchor: Anchor)(evt: MouseEvent): Unit = {
-    val serializers: Map[Class[_], Serializer] = (getSerializers() ++ geyGlobalSerializers).map(serializer =>
+    val serializers: Map[Class[_], Serializer] = (getSerializers ++ getGlobalSerializers).map(serializer =>
       (serializer.clazz, serializer)
     ).toMap
 
@@ -113,7 +113,7 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadG
 
   }
 
-  private def geyGlobalSerializers = {
+  private def getGlobalSerializers = {
     List(MessagesSerializer)
   }
 
@@ -132,7 +132,7 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadG
     val resultContent = r.result.toString
     vum.logUser("root", rootPassword)
 
-    val serializers: Map[String, Serializer] = (getSerializers() ++ geyGlobalSerializers).map(serializer =>
+    val serializers: Map[String, Serializer] = (getSerializers ++ getGlobalSerializers).map(serializer =>
       (serializer.name, serializer)
     ).toMap
 
@@ -248,7 +248,7 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadG
     } yield Seq(new MessagesCommand())
   }
 
-  def getSerializers() : Seq[Serializer]
+  def getSerializers: Seq[Serializer]
 
   private def deleteUserCommands(): Option[IOError] = Utils.mapFirstSome(userCommands, ConsoleGame.delete)
 

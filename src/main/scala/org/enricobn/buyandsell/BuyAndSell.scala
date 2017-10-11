@@ -14,10 +14,7 @@ class BuyAndSell(mainCanvasID: String, messagesCanvasID: String, loadGameID: Str
 extends ConsoleGame(mainCanvasID, messagesCanvasID, loadGameID, saveGameID) {
 
   override def onNewGame(): Option[IOError] = {
-    val warehouse = new Warehouse()
-    warehouse.add("gold", 2)
-    warehouse.add("silver", 10)
-    warehouse.add("bronze", 20)
+    val warehouse = Warehouse(Map("gold" -> 2, "silver" -> 10, "bronze" -> 20))
 
     val job = for {
       guest <- root.resolveFolderOrError("/home/guest", "Cannot find folder /home/guest.").right
@@ -33,7 +30,7 @@ extends ConsoleGame(mainCanvasID, messagesCanvasID, loadGameID, saveGameID) {
   def getCommands(): Either[IOError, Seq[VirtualCommand]] =
     Right(Seq(new SellCommand()))
 
-  override def getSerializers() : Seq[Serializer] =
+  override def getSerializers: Seq[Serializer] =
     List(WarehouseSerializer)
 
 }
