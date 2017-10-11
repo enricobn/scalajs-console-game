@@ -38,11 +38,10 @@ class SellCommand() extends VirtualCommand {
 
         for {
           warehouse <- file.contentAs(classOf[Warehouse]).right
-          messages <- MessagesCommand.getMessages(shell.currentFolder).right
           newWarehouse <- warehouse.sell(good, qty).right
           _ <- (file.content = newWarehouse).toLeft(()).right
+          _ <- MessagesCommand.addMessage(shell.currentFolder, "sell " + qty + " of " + good).toLeft(()).right
           runContext <- {
-            messages.add("sell " + qty + " of " + good)
             Right(new RunContext()).right
           }
         } yield runContext

@@ -21,6 +21,17 @@ object MessagesCommand {
       messages <- messagesFile.contentAs(classOf[Messages]).right
     } yield messages
   }
+
+  def addMessage(currentFolder: VirtualFolder, message: String) : Option[IOError] = {
+    val runAddMessage = for {
+      messagesFile <- messagesPath.toFile(currentFolder).right
+      messages <- messagesFile.contentAs(classOf[Messages]).right
+      newMessages <- Right(messages.add(message)).right
+      result <- (messagesFile.content = newMessages).toLeft(()).right
+    } yield result
+
+    runAddMessage.left.toOption
+  }
 }
 
 class MessagesCommand() extends VirtualCommand {

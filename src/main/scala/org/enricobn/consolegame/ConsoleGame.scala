@@ -239,11 +239,15 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadG
   }
 
   private def getDefaultCommands(): Either[IOError, Seq[VirtualCommand]] = {
-    val messages = new Messages()
+    val messages = Messages(Seq.empty)
 
     for {
       log <- root.resolveFolderOrError("/var/log", "Cannot find folder /var/log.").right
       messagesFile <- log.touch("messages.log").right
+      // TODO I don't like that guest has the ability to delete the file, remove logs etc...
+      // But it's not easy to avoid that and grant access to add messages, perhaps I need some
+      // system call handling, but I think it's too complicated for this project ...
+      _ <- messagesFile.chown("guest").toLeft(()).right
       _ <- (messagesFile.content = messages).toLeft(None).right
     } yield Seq(new MessagesCommand())
   }
