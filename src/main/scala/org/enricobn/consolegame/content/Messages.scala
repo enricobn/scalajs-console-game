@@ -1,6 +1,6 @@
 package org.enricobn.consolegame.content
 
-import org.enricobn.consolegame.{Serializer, UpickleUtils}
+import org.enricobn.consolegame.UpickleUtils
 import org.enricobn.terminal.StringPub
 import org.enricobn.vfs.IOError
 
@@ -26,14 +26,10 @@ case class Messages(messages: Seq[String]) {
   override def toString: String = messages.mkString("\n")
 }
 
-object MessagesSerializer extends Serializer {
-  override val clazz: Class[Messages] = classOf[Messages]
-
-  override def serialize(content: AnyRef): Either[IOError, String] =
-    content match {
-      case messages: Messages => UpickleUtils.writeE(messages)
-      case _ => Left(IOError("Not an instance of " + name))
-    }
+object MessagesSerializer extends SimpleSerializer(classOf[Messages]) {
 
   override def deserialize(ser: String): Either[IOError, Messages] = UpickleUtils.readE[Messages](ser)
+
+  override def serializeIt(content: Messages): Either[IOError, String] = UpickleUtils.writeE(content)
+
 }

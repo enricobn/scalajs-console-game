@@ -1,6 +1,7 @@
 package org.enricobn.buyandsell.content
 
-import org.enricobn.consolegame.{Serializer, UpickleUtils}
+import org.enricobn.consolegame.UpickleUtils
+import org.enricobn.consolegame.content.SimpleSerializer
 import org.enricobn.vfs.IOError
 import org.enricobn.vfs.IOError._
 
@@ -34,14 +35,9 @@ case class Warehouse(goods: Map[String, Int]) {
   }
 }
 
-object WarehouseSerializer extends Serializer {
-  override val clazz: Class[Warehouse] = classOf[Warehouse]
+object WarehouseSerializer extends SimpleSerializer(classOf[Warehouse]) {
 
-  override def serialize(content: AnyRef): Either[IOError, String] =
-    content match {
-      case warehouse: Warehouse => UpickleUtils.writeE(warehouse)
-      case _ => Left(IOError("Not an instance of " + name))
-    }
+  override def serializeIt(content: Warehouse): Either[IOError, String] = UpickleUtils.writeE(content)
 
   override def deserialize(ser: String): Either[IOError, Warehouse] = UpickleUtils.readE[Warehouse](ser)
 }
