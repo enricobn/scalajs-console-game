@@ -18,7 +18,7 @@ class SellCommand() extends VirtualCommand {
   import SellCommand._
 
   private val arguments = new VirtualCommandArguments(
-    new FileArgument("wareHouseFile", true, Some(getWarehouseFile(_).isDefined)),
+    FileArgument("wareHouseFile", true, getWarehouseFile(_).isDefined),
     new StringArgument("good", true) {
       override def complete(currentFolder: VirtualFolder, value: String, previousArguments: Seq[Any]) =
         goodsProposals(previousArguments.head.asInstanceOf[VirtualFile], value)
