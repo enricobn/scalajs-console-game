@@ -1,7 +1,7 @@
 package org.enricobn.buyandsell.commands
 
 import org.enricobn.buyandsell.content.Warehouse
-import org.enricobn.consolegame.commands.MessagesCommand
+import org.enricobn.consolegame.content.Messages
 import org.enricobn.shell._
 import org.enricobn.shell.impl._
 import org.enricobn.vfs.IOError._
@@ -40,7 +40,7 @@ class SellCommand() extends VirtualCommand {
           warehouse <- file.contentAs(classOf[Warehouse]).right
           newWarehouse <- warehouse.sell(good, qty).right
           _ <- (file.content = newWarehouse).toLeft(()).right
-          _ <- MessagesCommand.addMessage(shell.currentFolder, "sell " + qty + " of " + good).toLeft(()).right
+          _ <- Messages.addMessage(shell.currentFolder, "sell " + qty + " of " + good).toLeft(()).right
           runContext <- {
             Right(new RunContext()).right
           }

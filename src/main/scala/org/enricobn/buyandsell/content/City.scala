@@ -1,31 +1,31 @@
 package org.enricobn.buyandsell.content
 
-import java.time.LocalDate
+import org.enricobn.consolegame.UpickleUtils
+import org.enricobn.consolegame.content.SimpleSerializer
+import org.enricobn.vfs.IOError
+import upickle.default._
 
 /**
   * Created by enrico on 1/8/17.
   */
-case class City(name: String, founded: LocalDate, statistics: Statistics) {
+case class City(name: String, statistics: Statistics) {
 
   override def toString: String =
     "Name: " + name + "\n" +
-    "Founded: " + founded + "\n" +
-    "Statistics:\n" + statistics.last
+    statistics
 }
 
-case class StatisticEntry(population: Int, employed: Int) {
+case class Statistics(population: Int, employed: Int) {
 
   override def toString: String =
     "Population: " + population + "\n" +
     "Employed: " + employed
 }
 
-case class Statistics(history: Seq[StatisticEntry]) {
+object CitySerializer extends SimpleSerializer(classOf[City]) {
 
-  def add(entry: StatisticEntry): Statistics = {
-    Statistics(history :+ entry)
-  }
+  override def serializeIt(content: City): Either[IOError, String] = UpickleUtils.writeE(content)
 
-  def last: StatisticEntry = history.last
+  override def deserialize(ser: String): Either[IOError, City] = UpickleUtils.readE[City](ser)
 
 }

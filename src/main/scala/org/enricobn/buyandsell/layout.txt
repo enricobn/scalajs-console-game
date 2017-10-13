@@ -1,0 +1,16 @@
+/home/guest
+  market
+  bank
+  Pisa
+    city
+    warehouse
+    factory1
+    factory2
+
+
+Commands
+  createcity name
+  sell warehouse good qty
+  buy warehouse good qty
+  craft factory good qty
+  createfactory name type

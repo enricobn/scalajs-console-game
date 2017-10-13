@@ -4,13 +4,13 @@ import java.util.UUID
 
 import org.enricobn.consolegame.commands.MessagesCommand
 import org.enricobn.consolegame.content.{Messages, MessagesSerializer}
-import org.enricobn.shell.{VirtualCommand, VirtualShellContext}
 import org.enricobn.shell.impl._
-import org.enricobn.terminal.{CanvasInputHandler, CanvasTextScreen, JSLogger, TerminalImpl}
+import org.enricobn.shell.{VirtualCommand, VirtualShellContext}
+import org.enricobn.terminal._
+import org.enricobn.vfs._
 import org.enricobn.vfs.impl.VirtualUsersManagerImpl
 import org.enricobn.vfs.inmemory.InMemoryFS
 import org.enricobn.vfs.utils.Utils
-import org.enricobn.vfs._
 import org.scalajs.dom
 import org.scalajs.dom.FileReader
 import org.scalajs.dom.html.{Anchor, Canvas, Input}
@@ -28,7 +28,7 @@ import scala.language.reflectiveCalls
   */
 @JSExportAll
 abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadGameID: String, saveGameID: String) {
-  private val logger = new JSLogger()
+  private val logger = new JSLoggerImpl()
   private val mainScreen = new CanvasTextScreen(mainCanvasID, logger)
   private val mainInput = new CanvasInputHandler(mainCanvasID)
   private val mainTerminal = new TerminalImpl(mainScreen, mainInput, logger, "typewriter-key-1.wav")
@@ -60,8 +60,8 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadG
         context.createCommandFile(usrBin, command)
       })).right
       guestFolder <- root.resolveFolderOrError("/home/guest", "Cannot find /home/guest").right
-      _ <- onNewGame().toLeft(()).right
       _ <- vum.logUser("guest", guestPassword).toLeft(()).right
+      _ <- onNewGame().toLeft(()).right
     } yield {
       this.userCommands = userCommandFiles
       shell.currentFolder = guestFolder
@@ -218,7 +218,9 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadG
       log <- var_.mkdir("log").right
       usrBin <- usr.mkdir("bin").right
       home <- root.mkdir("home").right
+      // TODO would it be better if I create the home folder in vum.addUser?
       guest <- home.mkdir("guest").right
+      _ <- guest.chown("guest").toLeft(()).right
       _ <- context.createCommandFile(bin, new LsCommand).right
       _ <- context.createCommandFile(bin, new CdCommand).right
       _ <- context.createCommandFile(bin, new CatCommand).right

@@ -2,11 +2,33 @@ package org.enricobn.consolegame.content
 
 import org.enricobn.consolegame.UpickleUtils
 import org.enricobn.terminal.StringPub
-import org.enricobn.vfs.IOError
+import org.enricobn.vfs.{IOError, VirtualFolder, VirtualPath}
 
 /**
   * Created by enrico on 12/25/16.
   */
+object Messages {
+  val messagesPath = VirtualPath("/var/log/messages.log")
+
+  def getMessages(currentFolder: VirtualFolder) : Either[IOError, Messages] = {
+    for {
+      messagesFile <- messagesPath.toFile(currentFolder).right
+      messages <- messagesFile.contentAs(classOf[Messages]).right
+    } yield messages
+  }
+
+  def addMessage(currentFolder: VirtualFolder, message: String) : Option[IOError] = {
+    val runAddMessage = for {
+      messagesFile <- messagesPath.toFile(currentFolder).right
+      messages <- messagesFile.contentAs(classOf[Messages]).right
+      newMessages <- Right(messages.add(message)).right
+      result <- (messagesFile.content = newMessages).toLeft(()).right
+    } yield result
+
+    runAddMessage.left.toOption
+  }
+}
+
 case class Messages(messages: Seq[String]) {
   private val publisher = new StringPub()
 

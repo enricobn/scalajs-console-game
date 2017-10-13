@@ -13,25 +13,6 @@ import scala.collection.mutable
   */
 object MessagesCommand {
   val NAME = "messages"
-  val messagesPath = VirtualPath("/var/log/messages.log")
-
-  def getMessages(currentFolder: VirtualFolder) : Either[IOError, Messages] = {
-    for {
-      messagesFile <- messagesPath.toFile(currentFolder).right
-      messages <- messagesFile.contentAs(classOf[Messages]).right
-    } yield messages
-  }
-
-  def addMessage(currentFolder: VirtualFolder, message: String) : Option[IOError] = {
-    val runAddMessage = for {
-      messagesFile <- messagesPath.toFile(currentFolder).right
-      messages <- messagesFile.contentAs(classOf[Messages]).right
-      newMessages <- Right(messages.add(message)).right
-      result <- (messagesFile.content = newMessages).toLeft(()).right
-    } yield result
-
-    runAddMessage.left.toOption
-  }
 }
 
 class MessagesCommand() extends VirtualCommand {
@@ -47,7 +28,7 @@ class MessagesCommand() extends VirtualCommand {
     }
     var _running = true
 
-    getMessages(shell.currentFolder) match {
+    Messages.getMessages(shell.currentFolder) match {
       case Left(error) => Left(error)
       case Right(messages) =>
         shellInput.subscribe(in => {
