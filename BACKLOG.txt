@@ -1,22 +1,21 @@
 DOING
 ------
-- on branch serialize-fs
-  - testing the serialization / deserialization
 
 NEXT
 -----
-- on branch serialize-fs
-  - set the new fs only after deserialization is complete. Attention: some methods relies on current fs and root,
-    make them static?
-  - serializers: check for duplicate name
-  - ConsoleGame.initUserGameState rename to init and pass the home folder. It returns Option[IOError]. It must be called
-    with current user as guest, no need for changing the owner
-  - ConsoleGame.createUserCommands returns a seq of tuple (commandName, command) (or an Either of)
-  - create addMessage command and use it in SellCommand to add messages
+- set the new fs only after deserialization is complete. Attention: some methods relies on current fs and root,
+  make them static?
+- serializers: check for duplicate name
+- ConsoleGame.initUserGameState rename to init and pass the home folder. It returns Option[IOError]. It must be called
+  with current user as guest, no need for changing the owner
+- ConsoleGame.createUserCommands returns a seq of tuple (commandName, command) (or an Either of)
+- create addMessage command and use it in SellCommand to add messages
+- test FSSerializer for BuyAndSell
 
 DONE
 -----
 - on branch serialize-fs
+  - manually testing the serialization / deserialization
   - now serialization / deserialization of whole fs (excluding commands) seems to work
   - serialize/deserialize the folders
   - create a new filesystem and restore folders and files, excluding commands

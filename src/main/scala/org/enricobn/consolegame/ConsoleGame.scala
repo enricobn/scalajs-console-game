@@ -16,7 +16,6 @@ import org.scalajs.dom.FileReader
 import org.scalajs.dom.html.{Anchor, Canvas, Input}
 import org.scalajs.dom.raw._
 
-import scala.collection.GenTraversableOnce
 import scala.scalajs.js
 import scala.scalajs.js.annotation.JSExportAll
 
@@ -40,10 +39,9 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadG
   private val vum = new VirtualUsersManagerImpl(rootPassword)
   private val guestPassword = UUID.randomUUID().toString
   private var fs = new InMemoryFS(vum)
-  protected val context: VirtualShellContext = new VirtualShellContextImpl()
-  protected def root: VirtualFolder = fs.root
-  private var shell = new VirtualShell(mainTerminal, vum, context, root)
-  private var messagesShell = new VirtualShell(messagesTerminal, vum, context, root)
+  private val context: VirtualShellContext = new VirtualShellContextImpl()
+  private var shell = new VirtualShell(mainTerminal, vum, context, fs.root)
+  private var messagesShell = new VirtualShell(messagesTerminal, vum, context, fs.root)
 
   private var userCommands : Seq[VirtualFile] = _
 
@@ -54,14 +52,14 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadG
     val runInit = for {
       _ <- vum.addUser("guest", guestPassword).toLeft(()).right
       _ <- initFS().right
-      usrBin <- root.resolveFolderOrError("/usr/bin", "Cannot find /usr/bin").right
+      usrBin <- shell.toFolder("/usr/bin").right
       userCommands <- getAllCommands().right
       userCommandFiles <- Utils.lift(userCommands.map(command => {
         context.createCommandFile(usrBin, command)
       })).right
-      guestFolder <- root.resolveFolderOrError("/home/guest", "Cannot find /home/guest").right
-      _ <- vum.logUser("guest", guestPassword).toLeft(()).right
-      _ <- onNewGame().toLeft(()).right
+      guestFolder <- shell.toFolder("/home/guest").right
+      _ <-vum.logUser("guest", guestPassword).toLeft(()).right
+      _ <- onNewGame(shell).toLeft(()).right
     } yield {
       this.userCommands = userCommandFiles
       shell.currentFolder = guestFolder
@@ -86,18 +84,7 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadG
 
     val job =
       for {
-        fileContents <- lift(
-          allFiles.map(file => (file, file.content))
-        ).right
-        fileContentSerializers <- Right(allSome(fileContents.map {case (file, content) => ((file,content), serializers.get(content.getClass))})).right
-        serializedContents <- lift(
-          fileContentSerializers.map { case ((file, content), serializer) => ((file, serializer), serializer.serialize(content))
-        }).right
-        files <- Right(serializedContents.map { case ((file, serializer), ser) =>
-          SerializedFile(file.path, file.owner, file.permissions.octal, serializer.name, ser)
-        }).right
-        folders <- Right(getAllFolders(root).map(folder => SerializedFolder(folder.path, folder.owner, folder.permissions.octal))).right
-        ser <- UpickleUtils.writeE(SerializedFS(folders, files)).right
+        ser <- FSSerializer.save(allFiles, getAllFolders(fs.root), serializers).right
     } yield {
       val file = new Blob(js.Array(ser), BlobPropertyBag("text/plain"))
       anchor.href = URL.createObjectURL(file)
@@ -110,7 +97,6 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadG
       case Left(error) => dom.window.alert(s"Error saving game: ${error.message}.")
       case _ =>
     }
-
   }
 
   private def getGlobalSerializers = {
@@ -136,44 +122,13 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadG
       (serializer.name, serializer)
     ).toMap
 
-    fs = new InMemoryFS(vum)
+    val newFs = new InMemoryFS(vum)
 
-    val deserialize = for {
-      serializedFS <- UpickleUtils.readE[SerializedFS](resultContent).right
-      // I sort them so I crete them in order
-      _ <- Utils.lift(serializedFS.folders.sortBy(_.path).map(serializedFolder => {
-        for {
-          // TODO the path is absolute, I must make all intermediate folders
-          folder <- mkdir(serializedFolder.path).right
-          _ <- folder.chown(serializedFolder.owner).toLeft(()).right
-          result <- folder.chmod(serializedFolder.permissions).toLeft(()).right
-        } yield {
-          result
-        }
-      })).right
-      serializedAndSerializers <- lift(serializedFS.files.map(serializedFile => {
-        val serializerE = serializers.get(serializedFile.serializerName)
-          .toRight(IOError(s"Cannot find serializer with name=${serializedFile.serializerName}"))
-        (serializedFile, serializerE)
-      })).right
-      serializedAndSerializerAndContent <- lift(serializedAndSerializers.map {case (serializedFile, serializer) =>
-        // TODO errors
-        val path = VirtualPath(serializedFile.path)
-        val file = path.parentFragments.get.toFolder(root).right.get.touch(path.name).right.get
-        file.chown(serializedFile.owner)
-        file.chmod(serializedFile.permissions)
-        ((serializedFile, serializer), serializer.deserialize(serializedFile.ser))
-      }).right
-      contentFiles <- lift(serializedAndSerializerAndContent.map {case ((serializedFile, serializer), content) =>
-        (content, getFile(serializedFile.path))
-      }).right
-      result <- Utils.mapFirstSome[(AnyRef, VirtualFile), IOError](contentFiles,
-        { case (content, file) => file.content = content }
-      ).toLeft(()).right
-    } yield {
-      result
-    }
+    val newShell = new VirtualShell(mainTerminal, vum, context, newFs.root)
 
+    val deserialize = FSSerializer.load(newShell, serializers, resultContent)
+
+    // TODO is stopInteractiveCommands needed?
     messagesShell.stopInteractiveCommands({ () =>
       val run = for {
         _ <- deserialize.right
@@ -187,19 +142,23 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadG
 
       run match {
         case Left(error) =>
+          println(error.message)
           dom.window.alert("Error loading game. See javascript console for details.")
           false
         case Right(showPrompt) => {
-          // TODO even the fs must be set here, but some methods takes the current fs and root
+          fs = newFs
+
           messagesShell.stop()
-          messagesShell = new VirtualShell(messagesTerminal, vum, context, root)
+          messagesShell = new VirtualShell(messagesTerminal, vum, context, fs.root)
           messagesShell.startWithCommand(MessagesCommand.NAME)
+
           shell.stop()
-          shell = new VirtualShell(mainTerminal, vum, context, root)
+          shell = newShell
           // TODO error
-          shell.currentFolder = root.resolveFolderOrError("/home/guest", "Cannot find /home/guest").right.get
+          shell.currentFolder = shell.toFolder("/home/guest").right.get
           mainTerminal.add("\u001b[2J\u001b[1;1H") // clear screen an reset cursor to 1, 1
           shell.start()
+
           showPrompt
         }
       }
@@ -212,12 +171,12 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadG
 
   private def initFS(): Either[IOError,Unit] =
     for {
-      bin <- root.mkdir("bin").right
-      usr <- root.mkdir("usr").right
-      var_ <- root.mkdir("var").right
+      bin <- fs.root.mkdir("bin").right
+      usr <- fs.root.mkdir("usr").right
+      var_ <- fs.root.mkdir("var").right
       log <- var_.mkdir("log").right
       usrBin <- usr.mkdir("bin").right
-      home <- root.mkdir("home").right
+      home <- fs.root.mkdir("home").right
       // TODO would it be better if I create the home folder in vum.addUser?
       guest <- home.mkdir("guest").right
       _ <- guest.chown("guest").toLeft(()).right
@@ -229,7 +188,7 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadG
       context.addToPath(usrBin)
     }
 
-  def onNewGame(): Option[IOError]
+  def onNewGame(shell: VirtualShell): Option[IOError]
 
   def getCommands(): Either[IOError, Seq[VirtualCommand]]
 
@@ -244,7 +203,7 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadG
     val messages = Messages(Seq.empty)
 
     for {
-      log <- root.resolveFolderOrError("/var/log", "Cannot find folder /var/log.").right
+      log <- shell.toFolder("/var/log").right
       messagesFile <- log.touch("messages.log").right
       // TODO I don't like that guest has the ability to delete the file, remove logs etc...
       // But it's not easy to avoid that and grant access to add messages, perhaps I need some
@@ -261,7 +220,7 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadG
   // TODO error
   private def allFiles: Set[VirtualFile] = {
     vum.logRoot(rootPassword)
-    val files = getAllFiles(root)
+    val files = getAllFiles(fs.root)
     vum.logUser("guest", guestPassword)
     files
   }
@@ -292,53 +251,10 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadG
     }
 
 
-  // TODO move to library ?
-  private def lift[T,TL,TR](xs: GenTraversableOnce[(T, Either[TL,TR])]) : Either[TL,List[(T,TR)]] =
-    xs.foldRight(Right(List.empty[(T,TR)]) : Either[TL,List[(T,TR)]]) { (value, result) => {
-      result match {
-        case Left(_) => result
-        case Right(r) =>
-          value match {
-            case (t,Left(l)) => Left(l)
-            case (t,Right(r1)) => Right( (t,r1) :: r)
-          }
-      }
-    }}
-
-  // TODO move to library ?
-  private def lift[T,T1](xs: GenTraversableOnce[(T, Option[T1])]) : Option[List[(T,T1)]] =
-    xs.foldRight(Some(List.empty) : Option[List[(T,T1)]])((value, result) => {
-      result match {
-        case Some(l) =>
-          value match {
-            case (t, Some(v)) => Some((t,v) :: l)
-            case _ => None
-          }
-        case _ => None
-      }
-    })
-
-  // TODO move to library ?
-  private def allSome[T,T1](xs: GenTraversableOnce[(T, Option[T1])]) : List[(T,T1)] =
-    xs.foldRight(List.empty : List[(T,T1)])((value, result) => {
-        value match {
-          case (t, Some(v)) => (t,v) :: result
-          case _ => result
-        }
-    })
-
   private def getFile(path: String): Either[IOError, VirtualFile] = {
-    VirtualPath(path).toFile(root)
+    shell.toFile(path)
   }
 
-  private def mkdir(path: String) : Either[IOError, VirtualFolder] = {
-    val virtualPath = VirtualPath(path)
-
-    virtualPath.parentFragments.get.toFolder(fs.root) match {
-      case error@Left(_) => error
-      case Right(parent) => parent.mkdir(virtualPath.name)
-    }
-  }
 }
 
 object ConsoleGame {

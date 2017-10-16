@@ -28,7 +28,7 @@ class MessagesCommand() extends VirtualCommand {
     }
     var _running = true
 
-    Messages.getMessages(shell.currentFolder) match {
+    Messages.getMessages(shell) match {
       case Left(error) => Left(error)
       case Right(messages) =>
         shellInput.subscribe(in => {
@@ -62,7 +62,7 @@ class MessagesCommand() extends VirtualCommand {
 
   }
 
-  override def completion(line: String, currentFolder: VirtualFolder): Seq[String] = {
+  override def completion(line: String, shell: VirtualShell): Seq[String] = {
     Seq.empty
   }
 

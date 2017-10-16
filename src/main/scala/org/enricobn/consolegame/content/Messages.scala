@@ -1,6 +1,7 @@
 package org.enricobn.consolegame.content
 
 import org.enricobn.consolegame.UpickleUtils
+import org.enricobn.shell.impl.VirtualShell
 import org.enricobn.terminal.StringPub
 import org.enricobn.vfs.{IOError, VirtualFolder, VirtualPath}
 
@@ -8,18 +9,18 @@ import org.enricobn.vfs.{IOError, VirtualFolder, VirtualPath}
   * Created by enrico on 12/25/16.
   */
 object Messages {
-  val messagesPath = VirtualPath("/var/log/messages.log")
+  val messagesPath = "/var/log/messages.log"
 
-  def getMessages(currentFolder: VirtualFolder) : Either[IOError, Messages] = {
+  def getMessages(shell: VirtualShell) : Either[IOError, Messages] = {
     for {
-      messagesFile <- messagesPath.toFile(currentFolder).right
+      messagesFile <- shell.toFile(messagesPath).right
       messages <- messagesFile.contentAs(classOf[Messages]).right
     } yield messages
   }
 
-  def addMessage(currentFolder: VirtualFolder, message: String) : Option[IOError] = {
+  def addMessage(shell: VirtualShell, message: String) : Option[IOError] = {
     val runAddMessage = for {
-      messagesFile <- messagesPath.toFile(currentFolder).right
+      messagesFile <- shell.toFile(messagesPath).right
       messages <- messagesFile.contentAs(classOf[Messages]).right
       newMessages <- Right(messages.add(message)).right
       result <- (messagesFile.content = newMessages).toLeft(()).right

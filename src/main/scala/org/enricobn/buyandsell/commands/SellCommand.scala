@@ -20,7 +20,7 @@ class SellCommand() extends VirtualCommand {
   private val arguments = new VirtualCommandArguments(
     FileArgument("wareHouseFile", true, getWarehouseFile(_).isDefined),
     new StringArgument("good", true) {
-      override def complete(currentFolder: VirtualFolder, value: String, previousArguments: Seq[Any]) =
+      override def complete(shell: VirtualShell, value: String, previousArguments: Seq[Any]) =
         goodsProposals(previousArguments.head.asInstanceOf[VirtualFile], value)
     },
     IntArgument("qty", true)
@@ -29,7 +29,7 @@ class SellCommand() extends VirtualCommand {
   override def getName: String = NAME
 
   override def run(shell: VirtualShell, shellInput: ShellInput, shellOutput: ShellOutput, args: String*) : Either[IOError, RunContext] = {
-    arguments.parse(shell.currentFolder, "sell", args: _*) match {
+    arguments.parse(shell, "sell", args: _*) match {
       case Left(message) => ("sell: " + message).ioErrorE
       case Right(values) =>
         val file = values.head.asInstanceOf[VirtualFile]
@@ -40,7 +40,7 @@ class SellCommand() extends VirtualCommand {
           warehouse <- file.contentAs(classOf[Warehouse]).right
           newWarehouse <- warehouse.sell(good, qty).right
           _ <- (file.content = newWarehouse).toLeft(()).right
-          _ <- Messages.addMessage(shell.currentFolder, "sell " + qty + " of " + good).toLeft(()).right
+          _ <- Messages.addMessage(shell, "sell " + qty + " of " + good).toLeft(()).right
           runContext <- {
             Right(new RunContext()).right
           }
@@ -48,8 +48,8 @@ class SellCommand() extends VirtualCommand {
     }
   }
 
-  override def completion(line: String, currentFolder: VirtualFolder): Seq[String] = {
-    arguments.complete(currentFolder, line)
+  override def completion(line: String, shell: VirtualShell): Seq[String] = {
+    arguments.complete(shell, line)
   }
 
   private def goodsProposals(file: VirtualFile, prefix: String) : Seq[String] = {
