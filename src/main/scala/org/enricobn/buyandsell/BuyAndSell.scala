@@ -22,22 +22,18 @@ extends ConsoleGame(mainCanvasID, messagesCanvasID, loadGameID, saveGameID) {
 
     val job = for {
       home <- shell.homeFolder.right
-      gameStatisticsFile <- home.touch("gamestats").right
-      _ <- (gameStatisticsFile.content = gameStatistics).toLeft(None).right
-      marketFile <- home.touch("market").right
-      _ <- (marketFile.content = market).toLeft(None).right
+      _ <- home.createFile("gamestats", gameStatistics).right
+      _ <- home.createFile("market", market).right
       cityFolder <- home.mkdir("Pisa").right
-      cityFile <- cityFolder.touch("city").right
-      _ <- (cityFile.content = city).toLeft(None).right
-      warehouseFile <- cityFolder.touch("warehouse").right
-      result <- (warehouseFile.content = warehouse).toLeft(None).right
+      _ <- cityFolder.createFile("city", city).right
+      result <- cityFolder.createFile("warehouse", warehouse).right
     } yield result
 
     job.left.toOption
 
   }
 
-  def getCommands(): Either[IOError, Seq[VirtualCommand]] =
+  override def commands: Either[IOError, Seq[VirtualCommand]] =
     Right(Seq(new SellCommand()))
 
   override def getSerializers: Seq[Serializer] =

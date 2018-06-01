@@ -53,7 +53,7 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadG
       _ <- vum.addUser("guest", guestPassword).toLeft(()).right
       _ <- initFS().right
       usrBin <- shell.toFolder("/usr/bin").right
-      userCommands <- getAllCommands().right
+      userCommands <- allCommands.right
       userCommandFiles <- Utils.lift(userCommands.map(command => {
         context.createCommandFile(usrBin, command)
       })).right
@@ -145,7 +145,7 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadG
           println(error.message)
           dom.window.alert("Error loading game. See javascript console for details.")
           false
-        case Right(showPrompt) => {
+        case Right(showPrompt) =>
           fs = newFs
 
           messagesShell.stop()
@@ -160,7 +160,6 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadG
           shell.start()
 
           showPrompt
-        }
       }
 
     })
@@ -190,26 +189,25 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadG
 
   def onNewGame(shell: VirtualShell): Option[IOError]
 
-  def getCommands(): Either[IOError, Seq[VirtualCommand]]
+  def commands: Either[IOError, Seq[VirtualCommand]]
 
-  private def getAllCommands() : Either[IOError, Seq[VirtualCommand]] = {
+  private def allCommands : Either[IOError, Seq[VirtualCommand]] = {
     for {
-      defCommands <- getDefaultCommands().right
-      commands <- getCommands().right
+      defCommands <- defaultCommands.right
+      commands <- commands.right
     } yield defCommands ++ commands
   }
 
-  private def getDefaultCommands(): Either[IOError, Seq[VirtualCommand]] = {
+  private def defaultCommands: Either[IOError, Seq[VirtualCommand]] = {
     val messages = Messages(Seq.empty)
 
     for {
       log <- shell.toFolder("/var/log").right
-      messagesFile <- log.touch("messages.log").right
+      messagesFile <- log.createFile("messages.log", messages).right
       // TODO I don't like that guest has the ability to delete the file, remove logs etc...
       // But it's not easy to avoid that and grant access to add messages, perhaps I need some
       // system call handling, but I think it's too complicated for this project ...
       _ <- messagesFile.chown("guest").toLeft(()).right
-      _ <- (messagesFile.content = messages).toLeft(None).right
     } yield Seq(new MessagesCommand())
   }
 
