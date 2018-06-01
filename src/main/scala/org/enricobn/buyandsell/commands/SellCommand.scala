@@ -4,53 +4,21 @@ import org.enricobn.buyandsell.content.Warehouse
 import org.enricobn.consolegame.content.Messages
 import org.enricobn.shell._
 import org.enricobn.shell.impl._
-import org.enricobn.vfs.IOError._
 import org.enricobn.vfs._
 
 /**
   * Created by enrico on 12/17/16.
   */
 object SellCommand {
-  val NAME = "sell"
-}
 
-class SellCommand() extends VirtualCommand {
-  import SellCommand._
+  private val FILE = FileArgument("wareHouseFile", true, getWarehouseFile(_).isDefined)
 
-  private val arguments = new VirtualCommandArguments(
-    FileArgument("wareHouseFile", true, getWarehouseFile(_).isDefined),
-    new StringArgument("good", true) {
-      override def complete(shell: VirtualShell, value: String, previousArguments: Seq[Any]) =
-        goodsProposals(previousArguments.head.asInstanceOf[VirtualFile], value)
-    },
-    IntArgument("qty", true)
-  )
-
-  override def getName: String = NAME
-
-  override def run(shell: VirtualShell, shellInput: ShellInput, shellOutput: ShellOutput, args: String*) : Either[IOError, RunContext] = {
-    arguments.parse(shell, "sell", args: _*) match {
-      case Left(message) => ("sell: " + message).ioErrorE
-      case Right(values) =>
-        val file = values.head.asInstanceOf[VirtualFile]
-        val good = values(1).asInstanceOf[String]
-        val qty = values(2).asInstanceOf[Int]
-
-        for {
-          warehouse <- file.contentAs(classOf[Warehouse]).right
-          newWarehouse <- warehouse.sell(good, qty).right
-          _ <- (file.content = newWarehouse).toLeft(()).right
-          _ <- Messages.addMessage(shell, "sell " + qty + " of " + good).toLeft(()).right
-          runContext <- {
-            Right(new RunContext()).right
-          }
-        } yield runContext
-    }
+  private val GOOD = new StringArgument("good", true) {
+    override def complete(shell: VirtualShell, value: String, previousArguments: Seq[Any]) =
+      goodsProposals(previousArguments.head.asInstanceOf[VirtualFile], value)
   }
 
-  override def completion(line: String, shell: VirtualShell): Seq[String] = {
-    arguments.complete(shell, line)
-  }
+  private val QTY = IntArgument("qty", true)
 
   private def goodsProposals(file: VirtualFile, prefix: String) : Seq[String] = {
     getWarehouseFile(file) match {
@@ -64,5 +32,26 @@ class SellCommand() extends VirtualCommand {
       case warehouse: Warehouse => Some(warehouse)
       case _ => None
     })
+}
+
+
+import SellCommand._
+
+class SellCommand() extends VirtualCommandAbstract("sell", FILE, GOOD, QTY) {
+
+  override def runParsed(shell: VirtualShell, shellInput: ShellInput, shellOutput: ShellOutput, args: Seq[Any])
+  : Either[IOError, RunContext] = {
+      val file = args.head.asInstanceOf[VirtualFile]
+      val good = args(1).asInstanceOf[String]
+      val qty = args(2).asInstanceOf[Int]
+
+      for {
+        warehouse <- file.contentAs(classOf[Warehouse]).right
+        newWarehouse <- warehouse.sell(good, qty).right
+        _ <- (file.content = newWarehouse).toLeft(()).right
+        _ <- Messages.addMessage(shell, "sell " + qty + " of " + good).toLeft(()).right
+      } yield new RunContext()
+
+  }
 
 }

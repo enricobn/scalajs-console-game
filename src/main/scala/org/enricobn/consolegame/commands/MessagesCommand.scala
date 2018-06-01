@@ -18,7 +18,7 @@ object MessagesCommand {
 class MessagesCommand() extends VirtualCommand {
   import MessagesCommand._
 
-  override def getName: String = NAME
+  override def name: String = NAME
 
   override def run(shell: VirtualShell, shellInput: ShellInput, shellOutput: ShellOutput, args: String*) = {
     val stack = new mutable.Stack[String]()
