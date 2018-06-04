@@ -42,23 +42,35 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadG
   private val context: VirtualShellContext = new VirtualShellContextImpl()
   private var shell = new VirtualShell(mainTerminal, vum, context, fs.root)
   private var messagesShell = new VirtualShell(messagesTerminal, vum, context, fs.root)
-
   private var userCommands : Seq[VirtualFile] = _
+
+  private var userName : String = _
 
   def start() {
     mainCanvas.contentEditable = "true"
     mainCanvas.focus()
 
+    mainTerminal.add("Your name: ")
+    mainTerminal.flush()
+
+    shell.readLine({ s =>
+      userName = s
+      runInit()
+    })
+
+  }
+
+  private def runInit() = {
     val runInit = for {
-      _ <- vum.addUser("guest", guestPassword).toLeft(()).right
+      _ <- vum.addUser(userName, guestPassword).toLeft(()).right
       _ <- initFS().right
       usrBin <- shell.toFolder("/usr/bin").right
       userCommands <- allCommands.right
       userCommandFiles <- Utils.lift(userCommands.map(command => {
         context.createCommandFile(usrBin, command)
       })).right
-      guestFolder <- shell.toFolder("/home/guest").right
-      _ <-vum.logUser("guest", guestPassword).toLeft(()).right
+      guestFolder <- shell.toFolder("/home/" + userName).right
+      _ <- vum.logUser(userName, guestPassword).toLeft(()).right
       _ <- onNewGame(shell).toLeft(()).right
     } yield {
       this.userCommands = userCommandFiles
@@ -165,7 +177,7 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadG
     })
 
     // TODO Error
-    vum.logUser("guest", guestPassword)
+    vum.logUser(userName, guestPassword)
   }
 
   private def initFS(): Either[IOError,Unit] =
@@ -177,8 +189,8 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadG
       usrBin <- usr.mkdir("bin").right
       home <- fs.root.mkdir("home").right
       // TODO would it be better if I create the home folder in vum.addUser?
-      guest <- home.mkdir("guest").right
-      _ <- guest.chown("guest").toLeft(()).right
+      guest <- home.mkdir(userName).right
+      _ <- guest.chown(userName).toLeft(()).right
       _ <- context.createCommandFile(bin, new LsCommand).right
       _ <- context.createCommandFile(bin, new CdCommand).right
       _ <- context.createCommandFile(bin, new CatCommand).right
@@ -207,7 +219,7 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadG
       // TODO I don't like that guest has the ability to delete the file, remove logs etc...
       // But it's not easy to avoid that and grant access to add messages, perhaps I need some
       // system call handling, but I think it's too complicated for this project ...
-      _ <- messagesFile.chown("guest").toLeft(()).right
+      _ <- messagesFile.chown(userName).toLeft(()).right
     } yield Seq(new MessagesCommand())
   }
 
@@ -219,7 +231,7 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadG
   private def allFiles: Set[VirtualFile] = {
     vum.logRoot(rootPassword)
     val files = getAllFiles(fs.root)
-    vum.logUser("guest", guestPassword)
+    vum.logUser(userName, guestPassword)
     files
   }
 
