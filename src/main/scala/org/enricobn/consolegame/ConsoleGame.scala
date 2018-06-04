@@ -37,7 +37,7 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadG
   private val messagesTerminal = new TerminalImpl(messagesScreen, messagesInput, logger, "typewriter-key-1.wav")
   private val rootPassword = UUID.randomUUID().toString
   private val vum = new VirtualUsersManagerImpl(rootPassword)
-  private val guestPassword = UUID.randomUUID().toString
+  private val userPassword = UUID.randomUUID().toString
   private var fs = new InMemoryFS(vum)
   private val context: VirtualShellContext = new VirtualShellContextImpl()
   private var shell = new VirtualShell(mainTerminal, vum, context, fs.root)
@@ -62,19 +62,19 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadG
 
   private def runInit() = {
     val runInit = for {
-      _ <- vum.addUser(userName, guestPassword).toLeft(()).right
+      _ <- vum.addUser(userName, userPassword).toLeft(()).right
       _ <- initFS().right
       usrBin <- shell.toFolder("/usr/bin").right
       userCommands <- allCommands.right
       userCommandFiles <- Utils.lift(userCommands.map(command => {
         context.createCommandFile(usrBin, command)
       })).right
-      guestFolder <- shell.toFolder("/home/" + userName).right
-      _ <- vum.logUser(userName, guestPassword).toLeft(()).right
+      userHome <- shell.toFolder("/home/" + userName).right
+      _ <- vum.logUser(userName, userPassword).toLeft(()).right
       _ <- onNewGame(shell).toLeft(()).right
     } yield {
       this.userCommands = userCommandFiles
-      shell.currentFolder = guestFolder
+      shell.currentFolder = userHome
     }
 
     runInit match {
@@ -167,7 +167,7 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadG
           shell.stop()
           shell = newShell
           // TODO error
-          shell.currentFolder = shell.toFolder("/home/guest").right.get
+          shell.currentFolder = shell.toFolder("/home/" + userName).right.get
           mainTerminal.add("\u001b[2J\u001b[1;1H") // clear screen an reset cursor to 1, 1
           shell.start()
 
@@ -177,7 +177,7 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadG
     })
 
     // TODO Error
-    vum.logUser(userName, guestPassword)
+    vum.logUser(userName, userPassword)
   }
 
   private def initFS(): Either[IOError,Unit] =
@@ -189,8 +189,8 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadG
       usrBin <- usr.mkdir("bin").right
       home <- fs.root.mkdir("home").right
       // TODO would it be better if I create the home folder in vum.addUser?
-      guest <- home.mkdir(userName).right
-      _ <- guest.chown(userName).toLeft(()).right
+      userHome <- home.mkdir(userName).right
+      _ <- userHome.chown(userName).toLeft(()).right
       _ <- context.createCommandFile(bin, new LsCommand).right
       _ <- context.createCommandFile(bin, new CdCommand).right
       _ <- context.createCommandFile(bin, new CatCommand).right
@@ -216,7 +216,7 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadG
     for {
       log <- shell.toFolder("/var/log").right
       messagesFile <- log.createFile("messages.log", messages).right
-      // TODO I don't like that guest has the ability to delete the file, remove logs etc...
+      // TODO I don't like that user has the ability to delete the file, remove logs etc...
       // But it's not easy to avoid that and grant access to add messages, perhaps I need some
       // system call handling, but I think it's too complicated for this project ...
       _ <- messagesFile.chown(userName).toLeft(()).right
@@ -231,7 +231,7 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadG
   private def allFiles: Set[VirtualFile] = {
     vum.logRoot(rootPassword)
     val files = getAllFiles(fs.root)
-    vum.logUser(userName, guestPassword)
+    vum.logUser(userName, userPassword)
     files
   }
 
