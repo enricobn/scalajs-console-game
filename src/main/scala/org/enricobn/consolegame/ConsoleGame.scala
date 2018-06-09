@@ -22,6 +22,56 @@ import scala.scalajs.js.annotation.JSExportAll
 // to access members of structural types (new {}) without warnings
 import scala.language.reflectiveCalls
 
+object ConsoleGame {
+  // TODO move in VirtualFile?
+  def delete(file: VirtualFile): Option[IOError] =
+    file.parent match {
+      case Some(folder) => folder.deleteFile(file.name)
+      case _ => Some(IOError("No parent"))
+    }
+
+  def initFS(fs: VirtualFS, vum: VirtualUsersManager, context: VirtualShellContext, userName: String,
+             allCommands : Either[IOError, Seq[VirtualCommand]]): Either[IOError,Unit] =
+    for {
+      bin <- mkdir(fs.root, "bin").right
+      usr <- mkdir(fs.root, "usr").right
+      var_ <- mkdir(fs.root, "var").right
+      varLog <- mkdir(var_, "log").right
+      usrBin <- mkdir(usr, "bin").right
+      home <- mkdir(fs.root, "home").right
+      // TODO would it be better if I create the home folder in vum.addUser?
+      userHome <- mkdir(home, userName).right
+      _ <- userHome.chown(userName).toLeft(()).right
+      _ <- context.createCommandFile(bin, new LsCommand).right
+      _ <- context.createCommandFile(bin, new CdCommand).right
+      _ <- context.createCommandFile(bin, new CatCommand).right
+      userCommands <- allCommands.right
+      _ <- Utils.lift(userCommands.map(command => {
+        context.createCommandFile(usrBin, command)
+      })).right
+    } yield {
+      for {
+        messagesLog <- varLog.findFile("messages.log").right
+        messagesFile <- (if (messagesLog.isDefined) { Right(messagesLog.get) } else { varLog.createFile("messages.log", Messages(Seq.empty)) }).right
+        // TODO I don't like that user has the ability to delete the file, remove logs etc...
+        // But it's not easy to avoid that and grant access to add messages, perhaps I need some
+        // system call handling, but I think it's too complicated for this project ...
+        _ <- messagesFile.chown(userName).toLeft(()).right
+      } yield {
+        context.addToPath(bin)
+        context.addToPath(usrBin)
+      }
+    }
+
+  private def mkdir(parentFolder: VirtualFolder, name: String) : Either[IOError, VirtualFolder] = {
+    parentFolder.findFolder(name) match {
+      case Right(Some(folder)) => Right(folder)
+      case Right(None) => parentFolder.mkdir(name)
+      case Left(error) => Left(error)
+    }
+  }
+}
+
 /**
   * Created by enrico on 12/8/16.
   */
@@ -36,13 +86,12 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadG
   private val messagesInput = new CanvasInputHandler(messagesCanvasID)
   private val messagesTerminal = new TerminalImpl(messagesScreen, messagesInput, logger, "typewriter-key-1.wav")
   private val rootPassword = UUID.randomUUID().toString
-  private val vum = new VirtualUsersManagerImpl(rootPassword)
+  private var vum = new VirtualUsersManagerImpl(rootPassword)
   private val userPassword = UUID.randomUUID().toString
   private var fs = new InMemoryFS(vum)
-  private val context: VirtualShellContext = new VirtualShellContextImpl()
+  private var context: VirtualShellContext = new VirtualShellContextImpl()
   private var shell = new VirtualShell(mainTerminal, vum, context, fs.root)
   private var messagesShell = new VirtualShell(messagesTerminal, vum, context, fs.root)
-  private var userCommands : Seq[VirtualFile] = _
 
   private var userName : String = _
 
@@ -63,17 +112,11 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadG
   private def runInit() {
     val runInit = for {
       _ <- vum.addUser(userName, userPassword).toLeft(()).right
-      _ <- initFS().right
-      usrBin <- shell.toFolder("/usr/bin").right
-      userCommands <- allCommands.right
-      userCommandFiles <- Utils.lift(userCommands.map(command => {
-        context.createCommandFile(usrBin, command)
-      })).right
+      _ <- ConsoleGame.initFS(fs, vum, context, userName, allCommands).right
       userHome <- shell.toFolder("/home/" + userName).right
       _ <- vum.logUser(userName, userPassword).toLeft(()).right
       _ <- onNewGame(shell).toLeft(()).right
     } yield {
-      this.userCommands = userCommandFiles
       shell.currentFolder = userHome
     }
 
@@ -133,17 +176,23 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadG
   private def fileReaderOnLoad(f: File, r: FileReader)(e: UIEvent) {
     val resultContent = r.result.toString
 
-    val newFs = new InMemoryFS(vum)
+    val newVum = new VirtualUsersManagerImpl(rootPassword)
 
-    val newShell = new VirtualShell(mainTerminal, vum, context, newFs.root)
+    val newFs = new InMemoryFS(newVum)
+
+    val newContext = new VirtualShellContextImpl()
+
+    val newShell = new VirtualShell(mainTerminal, newVum, newContext, newFs.root)
 
     // TODO is stopInteractiveCommands needed?
     messagesShell.stopInteractiveCommands({ () =>
       val run = for {
-          _ <- vum.logRoot(rootPassword).toLeft(()).right
-          serializedFS <- UpickleUtils.readE[SerializedFS](resultContent).right
+        _ <- newVum.addUser(userName, userPassword).toLeft(()).right
+        _ <- newVum.logRoot(rootPassword).toLeft(()).right
+        serializedFS <- UpickleUtils.readE[SerializedFS](resultContent).right
         _ <- SerializedFSOperations.load(newShell, getSerializersMap, serializedFS).right
         showPrompt <- messagesShell.run(MessagesCommand.NAME).right
+        _ <- ConsoleGame.initFS(newFs, newVum, newContext, userName, allCommands).right
       } yield {
         messagesTerminal.add(s"Game loaded from ${f.name}\n")
         messagesTerminal.flush()
@@ -158,6 +207,8 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadG
           false
         case Right(showPrompt) =>
           fs = newFs
+          vum = newVum
+          context = newContext
 
           messagesShell.stop()
           messagesShell = new VirtualShell(messagesTerminal, vum, context, fs.root)
@@ -179,52 +230,20 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadG
     vum.logUser(userName, userPassword)
   }
 
-  private def initFS(): Either[IOError,Unit] =
-    for {
-      bin <- fs.root.mkdir("bin").right
-      usr <- fs.root.mkdir("usr").right
-      var_ <- fs.root.mkdir("var").right
-      log <- var_.mkdir("log").right
-      usrBin <- usr.mkdir("bin").right
-      home <- fs.root.mkdir("home").right
-      // TODO would it be better if I create the home folder in vum.addUser?
-      userHome <- home.mkdir(userName).right
-      _ <- userHome.chown(userName).toLeft(()).right
-      _ <- context.createCommandFile(bin, new LsCommand).right
-      _ <- context.createCommandFile(bin, new CdCommand).right
-      _ <- context.createCommandFile(bin, new CatCommand).right
-    } yield {
-      context.addToPath(bin)
-      context.addToPath(usrBin)
-    }
-
   def onNewGame(shell: VirtualShell): Option[IOError]
 
-  def commands: Either[IOError, Seq[VirtualCommand]]
+  def commands : Either[IOError, Seq[VirtualCommand]]
 
   private def allCommands : Either[IOError, Seq[VirtualCommand]] = {
     for {
-      defCommands <- defaultCommands.right
+      defCommands <- Right(defaultCommands).right
       commands <- commands.right
     } yield defCommands ++ commands
   }
 
-  private def defaultCommands: Either[IOError, Seq[VirtualCommand]] = {
-    val messages = Messages(Seq.empty)
-
-    for {
-      log <- shell.toFolder("/var/log").right
-      messagesFile <- log.createFile("messages.log", messages).right
-      // TODO I don't like that user has the ability to delete the file, remove logs etc...
-      // But it's not easy to avoid that and grant access to add messages, perhaps I need some
-      // system call handling, but I think it's too complicated for this project ...
-      _ <- messagesFile.chown(userName).toLeft(()).right
-    } yield Seq(new MessagesCommand())
-  }
+  private def defaultCommands : Seq[VirtualCommand] = Seq(new MessagesCommand())
 
   def getSerializers: Seq[Serializer]
-
-  private def deleteUserCommands(): Option[IOError] = Utils.mapFirstSome(userCommands, ConsoleGame.delete)
 
   // TODO error for logging (even for getAllFiles?)
   private def allFiles: Set[VirtualFile] = {
@@ -263,16 +282,6 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadG
   private def getFile(path: String): Either[IOError, VirtualFile] = {
     shell.toFile(path)
   }
-
-}
-
-object ConsoleGame {
-  // TODO move in VirtualFile?
-  def delete(file: VirtualFile): Option[IOError] =
-    file.parent match {
-      case Some(folder) => folder.deleteFile(file.name)
-      case _ => Some(IOError("No parent"))
-    }
 
 }
 
