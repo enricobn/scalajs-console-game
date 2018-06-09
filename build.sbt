@@ -19,14 +19,16 @@ lazy val root = (project in file("."))
     artifactPath in (Compile, packageMinifiedJSDependencies) := baseDirectory.value / (artifactPrefix + "-jsdeps.min.js"),
 //    libraryDependencies += "org.scala-js" %%% "scalajs-dom" % "0.9.1",
     libraryDependencies += "org.enricobn" %%% "scalajs-shell" % "1.0.0-SNAPSHOT" changing(),
-//    libraryDependencies += "org.scalatest" %% "scalatest" % "3.0.1" % "test",
     libraryDependencies += "com.lihaoyi" %%% "upickle" % "0.4.3",
-    libraryDependencies += "org.scalamock" %% "scalamock-scalatest-support" % "3.3.0" % "test"
 
-      //  libraryDependencies ++= Seq("org.scala-lang" % "scala-reflect" % "2.11.8"),
+    //  libraryDependencies ++= Seq("org.scala-lang" % "scala-reflect" % "2.11.8"),
     // TEST
-//    libraryDependencies += "com.lihaoyi" %%% "utest" % "0.4.3" % "test",
-//    testFrameworks += new TestFramework("utest.runner.Framework")
+    //libraryDependencies += "com.lihaoyi" %%% "utest" % "0.6.3" % Test,
+    libraryDependencies += "org.scalamock" %%% "scalamock" % "4.1.0" % Test,
+    libraryDependencies += "org.scalatest" %%% "scalatest" % "3.0.4" % Test,
+    //testFrameworks += new TestFramework("utest.runner.Framework"),
+    //scalaJSUseMainModuleInitializer := true,
+    testOptions in Test += Tests.Argument("-oF")
   )
   .enablePlugins(ScalaJSPlugin)
     
