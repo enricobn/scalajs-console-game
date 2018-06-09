@@ -1,14 +1,17 @@
 package org.enricobn.consolegame
 
 import org.enricobn.shell.impl.VirtualShell
-import org.enricobn.vfs.{IOError, VirtualFile, VirtualFolder, VirtualPath}
+import org.enricobn.vfs.IOError._
 import org.enricobn.vfs.utils.Utils
+import org.enricobn.vfs.{IOError, VirtualFile, VirtualFolder, VirtualPath}
 
-object FSSerializer {
+object SerializedFSOperations {
 
-  def load(shell: VirtualShell, serializers: Map[String, Serializer], ser: String): Either[IOError, Unit] =
+  /**
+    * Loads the given serializedFS using the given shell.
+    */
+  def load(shell: VirtualShell, serializers: Map[String, Serializer], serializedFS: SerializedFS): Either[IOError, Unit] =
     for {
-      serializedFS <- UpickleUtils.readE[SerializedFS](ser).right
       // I sort them so I crete them in order
       _ <- Utils.lift(serializedFS.folders.sortBy(_.path).map(serializedFolder => {
         for {
@@ -43,12 +46,19 @@ object FSSerializer {
       result
     }
 
-  def save(files: Set[VirtualFile], folders: List[VirtualFolder], serializers: Map[Class[_], Serializer]): Either[IOError, String] =
+  /**
+    * Builds a SerializedFS.
+    * Only files with serializable content (exists in the serializers map) are serialized.
+    * Is it correct?
+    * Would be better to raise an error? But in that case I must ignore the commands, so I must mark them as
+    * non serializable in some way.
+    */
+  def build(files: Set[VirtualFile], folders: List[VirtualFolder], serializers: Map[String, Serializer]): Either[IOError, SerializedFS] =
     for {
       fileContents <- FunctionalUtils.lift(
         files.map(file => (file, file.content))
       ).right
-      fileContentSerializers <- Right(FunctionalUtils.allSome(fileContents.map {case (file, content) => ((file,content), serializers.get(content.getClass))})).right
+      fileContentSerializers <- Right(FunctionalUtils.allSome(fileContents.map {case (file, content) => ((file,content), serializers.get(content.getClass.getName))})).right
       serializedContents <- FunctionalUtils.lift(
         fileContentSerializers.map { case ((file, content), serializer) => ((file, serializer), serializer.serialize(content))
         }).right
@@ -56,16 +66,17 @@ object FSSerializer {
         SerializedFile(file.path, file.owner, file.permissions.octal, serializer.name, ser)
       }).right
       folders <- Right(folders.map(folder => SerializedFolder(folder.path, folder.owner, folder.permissions.octal))).right
-      ser <- UpickleUtils.writeE(SerializedFS(folders, files)).right
     } yield {
-      ser
+      SerializedFS(folders, files)
     }
 
   private def mkdir(shell:VirtualShell, path: String) : Either[IOError, VirtualFolder] = {
     val virtualPath = VirtualPath(path)
 
-    shell.toFolder(virtualPath.parentFragments.get.path) match {
-      case error@Left(_) => error
+    val parentPath = virtualPath.parentFragments.get.path
+
+    shell.toFolder(parentPath) match {
+      case Left(error) => s"Cannot make directory $path, cannot find $parentPath : ${error.message}".ioErrorE
       case Right(parent) => parent.mkdir(virtualPath.name)
     }
   }

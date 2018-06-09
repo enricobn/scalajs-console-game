@@ -60,7 +60,7 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadG
 
   }
 
-  private def runInit() = {
+  private def runInit() {
     val runInit = for {
       _ <- vum.addUser(userName, userPassword).toLeft(()).right
       _ <- initFS().right
@@ -90,15 +90,12 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadG
   }
 
   private def saveGame(anchor: Anchor)(evt: MouseEvent): Unit = {
-    val serializers: Map[Class[_], Serializer] = (getSerializers ++ getGlobalSerializers).map(serializer =>
-      (serializer.clazz, serializer)
-    ).toMap
-
     val job =
       for {
-        ser <- FSSerializer.save(allFiles, getAllFolders(fs.root), serializers).right
-    } yield {
-      val file = new Blob(js.Array(ser), BlobPropertyBag("text/plain"))
+        serializedFS <- SerializedFSOperations.build(allFiles, getAllFolders(fs.root), getSerializersMap).right
+        ser <- UpickleUtils.writeE(serializedFS).right
+      } yield {
+        val file = new Blob(js.Array(ser), BlobPropertyBag("text/plain"))
       anchor.href = URL.createObjectURL(file)
       anchor.pathname = "consolegame.json"
       messagesTerminal.add(s"Game saved.\n")
@@ -109,6 +106,13 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadG
       case Left(error) => dom.window.alert(s"Error saving game: ${error.message}.")
       case _ =>
     }
+  }
+
+  protected def getSerializersMap: Map[String, Serializer] = {
+    val serializers: Map[String, Serializer] = (getSerializers ++ getGlobalSerializers).map(serializer =>
+      (serializer.clazz.getName, serializer)
+    ).toMap
+    serializers
   }
 
   private def getGlobalSerializers = {
@@ -128,22 +132,17 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadG
 
   private def fileReaderOnLoad(f: File, r: FileReader)(e: UIEvent) {
     val resultContent = r.result.toString
-    vum.logUser("root", rootPassword)
-
-    val serializers: Map[String, Serializer] = (getSerializers ++ getGlobalSerializers).map(serializer =>
-      (serializer.name, serializer)
-    ).toMap
 
     val newFs = new InMemoryFS(vum)
 
     val newShell = new VirtualShell(mainTerminal, vum, context, newFs.root)
 
-    val deserialize = FSSerializer.load(newShell, serializers, resultContent)
-
     // TODO is stopInteractiveCommands needed?
     messagesShell.stopInteractiveCommands({ () =>
       val run = for {
-        _ <- deserialize.right
+          _ <- vum.logRoot(rootPassword).toLeft(()).right
+          serializedFS <- UpickleUtils.readE[SerializedFS](resultContent).right
+        _ <- SerializedFSOperations.load(newShell, getSerializersMap, serializedFS).right
         showPrompt <- messagesShell.run(MessagesCommand.NAME).right
       } yield {
         messagesTerminal.add(s"Game loaded from ${f.name}\n")
@@ -227,7 +226,7 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadG
 
   private def deleteUserCommands(): Option[IOError] = Utils.mapFirstSome(userCommands, ConsoleGame.delete)
 
-  // TODO error
+  // TODO error for logging (even for getAllFiles?)
   private def allFiles: Set[VirtualFile] = {
     vum.logRoot(rootPassword)
     val files = getAllFiles(fs.root)
@@ -236,7 +235,7 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadG
   }
 
   // TODO create scalajs-vfs VirtualFolder.getAllFiles
-  // TODO error
+  // TODO error?
   private def getAllFiles(folder: VirtualFolder) : Set[VirtualFile] =
     (for {
       files <- folder.files.right
@@ -249,7 +248,7 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadG
     }
 
   // TODO create scalajs-vfs VirtualFolder.getAllFolders
-  // TODO error
+  // TODO error?
   private def getAllFolders(folder: VirtualFolder) : List[VirtualFolder] =
     (for {
       folders <- folder.folders.right
@@ -277,6 +276,8 @@ object ConsoleGame {
 
 }
 
-private case class SerializedFile(path: String, owner: String, permissions: Int, serializerName: String, ser: String)
-private case class SerializedFolder(path: String, owner: String, permissions: Int)
-private case class SerializedFS(folders: List[SerializedFolder], files: List[SerializedFile])
+case class SerializedFile(path: String, owner: String, permissions: Int, serializerName: String, ser: String)
+
+case class SerializedFolder(path: String, owner: String, permissions: Int)
+
+case class SerializedFS(folders: List[SerializedFolder], files: List[SerializedFile])
