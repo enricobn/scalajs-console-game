@@ -1,5 +1,6 @@
 package org.enricobn.consolegame
 
+import org.enricobn.buyandsell.BuyAndSell
 import org.enricobn.buyandsell.content.{CitySerializer, GameStatisticsSerializer, MarketSerializer, WarehouseSerializer}
 import org.enricobn.consolegame.content.MessagesSerializer
 import org.enricobn.shell.impl.{VirtualShell, VirtualShellContextImpl}
@@ -14,7 +15,7 @@ import scala.language.reflectiveCalls
 class SerializedFSOperationsSpec extends FlatSpec with MockFactory with Matchers {
 
   private val serializers =
-    List(GameStatisticsSerializer, CitySerializer, MarketSerializer, WarehouseSerializer, MessagesSerializer)
+    (MessagesSerializer :: BuyAndSell.serializers)
       .map(serializer =>
         (serializer.clazz.getName, serializer)
       ).toMap
@@ -29,10 +30,6 @@ class SerializedFSOperationsSpec extends FlatSpec with MockFactory with Matchers
 
     val fs = new InMemoryFS(vum)
     val context = new VirtualShellContextImpl()
-
-    //val _homeFolder = fs.root.mkdir("home").right.get
-    //val _userHomeFolder = _homeFolder.mkdir("enrico").right.get
-
     val virtualShell = new VirtualShell(term, vum, context, fs.root)
 
     new {
@@ -61,18 +58,4 @@ class SerializedFSOperationsSpec extends FlatSpec with MockFactory with Matchers
 
   }
 
-  /*
-  object DummyTerminal extends Terminal {
-
-    override def onInput(subscriber: mutable.Subscriber[String, mutable.Publisher[String]]): Unit = {}
-
-    override def removeOnInput(subscriber: mutable.Subscriber[String, mutable.Publisher[String]]): Unit = {}
-
-    override def removeOnInputs(): Unit = {}
-
-    override def add(text: String): Unit = {}
-
-    override def flush(): Unit = {}
-  }
-*/
 }

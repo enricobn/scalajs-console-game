@@ -9,6 +9,10 @@ import org.enricobn.vfs.IOError
 
 import scala.scalajs.js.annotation.{JSExport, JSExportAll}
 
+object BuyAndSell {
+  val serializers = List(GameStatisticsSerializer, CitySerializer, MarketSerializer, WarehouseSerializer)
+}
+
 @JSExport(name = "BuyAndSell")
 @JSExportAll
 class BuyAndSell(mainCanvasID: String, messagesCanvasID: String, loadGameID: String, saveGameID: String)
@@ -36,7 +40,6 @@ extends ConsoleGame(mainCanvasID, messagesCanvasID, loadGameID, saveGameID) {
   override def commands: Either[IOError, Seq[VirtualCommand]] =
     Right(Seq(new SellCommand()))
 
-  override def getSerializers: Seq[Serializer] =
-    List(GameStatisticsSerializer, CitySerializer, MarketSerializer, WarehouseSerializer)
+  override def getSerializers: Seq[Serializer] = BuyAndSell.serializers
 
 }
