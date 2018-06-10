@@ -8,7 +8,7 @@ import org.enricobn.shell.impl._
 import org.enricobn.shell.{VirtualCommand, VirtualShellContext}
 import org.enricobn.terminal._
 import org.enricobn.vfs._
-import org.enricobn.vfs.impl.VirtualUsersManagerImpl
+import org.enricobn.vfs.impl.{VirtualSecurityManagerImpl, VirtualUsersManagerImpl}
 import org.enricobn.vfs.inmemory.InMemoryFS
 import org.enricobn.vfs.utils.Utils
 import org.scalajs.dom
@@ -87,11 +87,12 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadG
   private val messagesTerminal = new TerminalImpl(messagesScreen, messagesInput, logger, "typewriter-key-1.wav")
   private val rootPassword = UUID.randomUUID().toString
   private var vum = new VirtualUsersManagerImpl(rootPassword)
+  private var vsm = new VirtualSecurityManagerImpl(vum)
   private val userPassword = UUID.randomUUID().toString
-  private var fs = new InMemoryFS(vum)
+  private var fs = new InMemoryFS(vum, vsm)
   private var context: VirtualShellContext = new VirtualShellContextImpl()
-  private var shell = new VirtualShell(mainTerminal, vum, context, fs.root)
-  private var messagesShell = new VirtualShell(messagesTerminal, vum, context, fs.root)
+  private var shell = new VirtualShell(mainTerminal, vum, vsm, context, fs.root)
+  private var messagesShell = new VirtualShell(messagesTerminal, vum, vsm, context, fs.root)
 
   private var userName : String = _
 
@@ -178,11 +179,13 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadG
 
     val newVum = new VirtualUsersManagerImpl(rootPassword)
 
-    val newFs = new InMemoryFS(newVum)
+    val newVsm = new VirtualSecurityManagerImpl(newVum)
+
+    val newFs = new InMemoryFS(newVum, newVsm)
 
     val newContext = new VirtualShellContextImpl()
 
-    val newShell = new VirtualShell(mainTerminal, newVum, newContext, newFs.root)
+    val newShell = new VirtualShell(mainTerminal, newVum, newVsm, newContext, newFs.root)
 
     // TODO is stopInteractiveCommands needed?
     messagesShell.stopInteractiveCommands({ () =>
@@ -193,6 +196,7 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadG
         _ <- SerializedFSOperations.load(newShell, getSerializersMap, serializedFS).right
         showPrompt <- messagesShell.run(MessagesCommand.NAME).right
         _ <- ConsoleGame.initFS(newFs, newVum, newContext, userName, allCommands).right
+        _ <- newVum.logUser(userName, userPassword).toLeft(()).right
       } yield {
         messagesTerminal.add(s"Game loaded from ${f.name}\n")
         messagesTerminal.flush()
@@ -208,10 +212,11 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadG
         case Right(showPrompt) =>
           fs = newFs
           vum = newVum
+          vsm = newVsm
           context = newContext
 
           messagesShell.stop()
-          messagesShell = new VirtualShell(messagesTerminal, vum, context, fs.root)
+          messagesShell = new VirtualShell(messagesTerminal, vum, vsm, context, fs.root)
           messagesShell.startWithCommand(MessagesCommand.NAME)
 
           shell.stop()

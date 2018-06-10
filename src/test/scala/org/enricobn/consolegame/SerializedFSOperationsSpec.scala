@@ -1,11 +1,10 @@
 package org.enricobn.consolegame
 
 import org.enricobn.buyandsell.BuyAndSell
-import org.enricobn.buyandsell.content.{CitySerializer, GameStatisticsSerializer, MarketSerializer, WarehouseSerializer}
 import org.enricobn.consolegame.content.MessagesSerializer
 import org.enricobn.shell.impl.{VirtualShell, VirtualShellContextImpl}
 import org.enricobn.terminal.Terminal
-import org.enricobn.vfs.impl.VirtualUsersManagerImpl
+import org.enricobn.vfs.impl.{VirtualSecurityManagerImpl, VirtualUsersManagerImpl}
 import org.enricobn.vfs.inmemory.InMemoryFS
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.{FlatSpec, Matchers}
@@ -24,13 +23,14 @@ class SerializedFSOperationsSpec extends FlatSpec with MockFactory with Matchers
     val term = mock[Terminal]
     val rootPassword = "root"
     val vum = new VirtualUsersManagerImpl(rootPassword)
+    val vsm = new VirtualSecurityManagerImpl(vum)
 
     vum.addUser("enrico", "enrico")
     vum.logRoot(rootPassword)
 
-    val fs = new InMemoryFS(vum)
+    val fs = new InMemoryFS(vum, vsm)
     val context = new VirtualShellContextImpl()
-    val virtualShell = new VirtualShell(term, vum, context, fs.root)
+    val virtualShell = new VirtualShell(term, vum, vsm, context, fs.root)
 
     new {
       val shell = virtualShell
