@@ -25,18 +25,20 @@ class SerializedFSOperationsSpec extends FlatSpec with MockFactory with Matchers
     val vum = new VirtualUsersManagerImpl(rootPassword)
     val vsm = new VirtualSecurityManagerImpl(vum)
 
-    vum.addUser("enrico", "enrico")
-    vum.logRoot(rootPassword)
+    val _rootAuthentication = vum.logRoot(rootPassword).right.get
+
+    vum.addUser("enrico", "enrico")(_rootAuthentication)
 
     val fs = new InMemoryFS(vum, vsm)
     val context = new VirtualShellContextImpl()
-    val virtualShell = new VirtualShell(term, vum, vsm, context, fs.root)
+    val virtualShell = new VirtualShell(term, vum, vsm, context, fs.root, _rootAuthentication)
 
     new {
       val shell = virtualShell
       val terminal = term
       val virtualUsersManager = vum
       val root = fs.root
+      val rootAuthentication = _rootAuthentication
     }
   }
 
@@ -50,7 +52,7 @@ class SerializedFSOperationsSpec extends FlatSpec with MockFactory with Matchers
 
     serializedFS.left.map({ error => fail(error.message) })
 
-    val value = SerializedFSOperations.load(f.shell, serializers, serializedFS.right.get)
+    val value = SerializedFSOperations.load(f.shell, serializers, serializedFS.right.get)(f.rootAuthentication)
 
     value.left.map({ error => fail(error.message) })
 

@@ -1,9 +1,11 @@
 DOING
 ------
-- on branch serialize-fs
+- on branch serialize-fs: fs serialization
+  - on branch authentication: authentication in scalajs-vfs
 
 NEXT
 -----
+- can I move SerializedFS and SerializedFSOperations in scalajs-vfs?
 - make static fun to get Market from home
 - serializers: check for duplicate name
 - make ConsoleGame.createUserCommands returns a seq of tuple (commandName, command) (or an Either of)

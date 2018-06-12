@@ -2,15 +2,16 @@ package org.enricobn.consolegame
 
 import org.enricobn.shell.impl.VirtualShell
 import org.enricobn.vfs.IOError._
+import org.enricobn.vfs._
 import org.enricobn.vfs.utils.Utils
-import org.enricobn.vfs.{IOError, VirtualFile, VirtualFolder, VirtualPath}
 
 object SerializedFSOperations {
 
   /**
     * Loads the given serializedFS using the given shell.
     */
-  def load(shell: VirtualShell, serializers: Map[String, Serializer], serializedFS: SerializedFS): Either[IOError, Unit] =
+  def load(shell: VirtualShell, serializers: Map[String, Serializer], serializedFS: SerializedFS)
+          (implicit authentication: Authentication) : Either[IOError, Unit] =
     for {
       // I sort them so I crete them in order
       _ <- Utils.lift(serializedFS.folders.sortBy(_.path).map(serializedFolder => {
@@ -40,7 +41,7 @@ object SerializedFSOperations {
         (content, shell.toFile(serializedFile.path))
       }).right
       result <- Utils.mapFirstSome[(AnyRef, VirtualFile), IOError](contentFiles,
-        { case (content, file) => file.content = content }
+        { case (content, file) => file.setContent(content) }
       ).toLeft(()).right
     } yield {
       result
@@ -53,10 +54,11 @@ object SerializedFSOperations {
     * Would be better to raise an error? But in that case I must ignore the commands, so I must mark them as
     * non serializable in some way.
     */
-  def build(files: Set[VirtualFile], folders: List[VirtualFolder], serializers: Map[String, Serializer]): Either[IOError, SerializedFS] =
+  def build(files: Set[VirtualFile], folders: List[VirtualFolder], serializers: Map[String, Serializer])
+           (implicit authentication: Authentication): Either[IOError, SerializedFS] =
     for {
       fileContents <- FunctionalUtils.lift(
-        files.map(file => (file, file.content))
+        files.map(file => (file, file.getContent))
       ).right
       fileContentSerializers <- Right(FunctionalUtils.allSome(fileContents.map {case (file, content) => ((file,content), serializers.get(content.getClass.getName))})).right
       serializedContents <- FunctionalUtils.lift(
@@ -70,7 +72,7 @@ object SerializedFSOperations {
       SerializedFS(folders, files)
     }
 
-  private def mkdir(shell:VirtualShell, path: String) : Either[IOError, VirtualFolder] = {
+  private def mkdir(shell:VirtualShell, path: String)(implicit authentication: Authentication) : Either[IOError, VirtualFolder] = {
     val virtualPath = VirtualPath(path)
 
     val parentPath = virtualPath.parentFragments.get.path

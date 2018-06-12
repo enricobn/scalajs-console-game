@@ -24,14 +24,14 @@ import scala.language.reflectiveCalls
 
 object ConsoleGame {
   // TODO move in VirtualFile?
-  def delete(file: VirtualFile): Option[IOError] =
+  def delete(file: VirtualFile)(implicit authentication: Authentication) : Option[IOError] =
     file.parent match {
       case Some(folder) => folder.deleteFile(file.name)
       case _ => Some(IOError("No parent"))
     }
 
   def initFS(fs: VirtualFS, vum: VirtualUsersManager, context: VirtualShellContext, userName: String,
-             allCommands : Either[IOError, Seq[VirtualCommand]]): Either[IOError,Unit] =
+             allCommands : Either[IOError, Seq[VirtualCommand]])(implicit authentication: Authentication) : Either[IOError,Unit] =
     for {
       bin <- mkdir(fs.root, "bin").right
       usr <- mkdir(fs.root, "usr").right
@@ -63,7 +63,7 @@ object ConsoleGame {
       }
     }
 
-  private def mkdir(parentFolder: VirtualFolder, name: String) : Either[IOError, VirtualFolder] = {
+  private def mkdir(parentFolder: VirtualFolder, name: String)(implicit authentication: Authentication) : Either[IOError, VirtualFolder] = {
     parentFolder.findFolder(name) match {
       case Right(Some(folder)) => Right(folder)
       case Right(None) => parentFolder.mkdir(name)
@@ -91,8 +91,9 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadG
   private val userPassword = UUID.randomUUID().toString
   private var fs = new InMemoryFS(vum, vsm)
   private var context: VirtualShellContext = new VirtualShellContextImpl()
-  private var shell = new VirtualShell(mainTerminal, vum, vsm, context, fs.root)
-  private var messagesShell = new VirtualShell(messagesTerminal, vum, vsm, context, fs.root)
+  private var rootAuthentication = vum.logRoot(rootPassword).right.get
+  private var shell = new VirtualShell(mainTerminal, vum, vsm, context, fs.root, rootAuthentication)
+  private var messagesShell = new VirtualShell(messagesTerminal, vum, vsm, context, fs.root, rootAuthentication)
 
   private var userName : String = _
 
@@ -112,10 +113,10 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadG
 
   private def runInit() {
     val runInit = for {
-      _ <- vum.addUser(userName, userPassword).toLeft(()).right
-      _ <- ConsoleGame.initFS(fs, vum, context, userName, allCommands).right
+      _ <- vum.addUser(userName, userPassword)(rootAuthentication).toLeft(()).right
+      _ <- ConsoleGame.initFS(fs, vum, context, userName, allCommands)(rootAuthentication).right
       userHome <- shell.toFolder("/home/" + userName).right
-      _ <- vum.logUser(userName, userPassword).toLeft(()).right
+      _ <- shell.login(userName, userPassword).right
       _ <- onNewGame(shell).toLeft(()).right
     } yield {
       shell.currentFolder = userHome
@@ -136,7 +137,7 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadG
   private def saveGame(anchor: Anchor)(evt: MouseEvent): Unit = {
     val job =
       for {
-        serializedFS <- SerializedFSOperations.build(allFiles, getAllFolders(fs.root), getSerializersMap).right
+        serializedFS <- SerializedFSOperations.build(allFiles, getAllFolders(fs.root), getSerializersMap)(rootAuthentication).right
         ser <- UpickleUtils.writeE(serializedFS).right
       } yield {
         val file = new Blob(js.Array(ser), BlobPropertyBag("text/plain"))
@@ -179,24 +180,27 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadG
 
     val newVum = new VirtualUsersManagerImpl(rootPassword)
 
+    val newRootAuthentication = newVum.logRoot(rootPassword).right.get
+
     val newVsm = new VirtualSecurityManagerImpl(newVum)
 
     val newFs = new InMemoryFS(newVum, newVsm)
 
     val newContext = new VirtualShellContextImpl()
 
-    val newShell = new VirtualShell(mainTerminal, newVum, newVsm, newContext, newFs.root)
+    val newShell = new VirtualShell(mainTerminal, newVum, newVsm, newContext, newFs.root, newRootAuthentication)
 
     // TODO is stopInteractiveCommands needed?
     messagesShell.stopInteractiveCommands({ () =>
+      implicit val authentication : Authentication = newRootAuthentication
+
       val run = for {
         _ <- newVum.addUser(userName, userPassword).toLeft(()).right
-        _ <- newVum.logRoot(rootPassword).toLeft(()).right
         serializedFS <- UpickleUtils.readE[SerializedFS](resultContent).right
         _ <- SerializedFSOperations.load(newShell, getSerializersMap, serializedFS).right
         showPrompt <- messagesShell.run(MessagesCommand.NAME).right
         _ <- ConsoleGame.initFS(newFs, newVum, newContext, userName, allCommands).right
-        _ <- newVum.logUser(userName, userPassword).toLeft(()).right
+        _ <- newShell.login(userName, userPassword).right
       } yield {
         messagesTerminal.add(s"Game loaded from ${f.name}\n")
         messagesTerminal.flush()
@@ -214,9 +218,10 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadG
           vum = newVum
           vsm = newVsm
           context = newContext
+          rootAuthentication = newRootAuthentication
 
           messagesShell.stop()
-          messagesShell = new VirtualShell(messagesTerminal, vum, vsm, context, fs.root)
+          messagesShell = new VirtualShell(messagesTerminal, vum, vsm, context, fs.root, newRootAuthentication)
           messagesShell.startWithCommand(MessagesCommand.NAME)
 
           shell.stop()
@@ -252,6 +257,8 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadG
 
   // TODO error for logging (even for getAllFiles?)
   private def allFiles: Set[VirtualFile] = {
+    implicit val authentication : Authentication = rootAuthentication
+
     vum.logRoot(rootPassword)
     val files = getAllFiles(fs.root)
     vum.logUser(userName, userPassword)
@@ -260,7 +267,9 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadG
 
   // TODO create scalajs-vfs VirtualFolder.getAllFiles
   // TODO error?
-  private def getAllFiles(folder: VirtualFolder) : Set[VirtualFile] =
+  private def getAllFiles(folder: VirtualFolder) : Set[VirtualFile] = {
+    implicit val authentication : Authentication = rootAuthentication
+
     (for {
       files <- folder.files.right
       folders <- folder.folders.right
@@ -270,10 +279,13 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadG
       case Left(error) => Set()
       case Right(files) => files
     }
+  }
 
   // TODO create scalajs-vfs VirtualFolder.getAllFolders
   // TODO error?
-  private def getAllFolders(folder: VirtualFolder) : List[VirtualFolder] =
+  private def getAllFolders(folder: VirtualFolder) : List[VirtualFolder] = {
+    implicit val authentication : Authentication = rootAuthentication
+
     (for {
       folders <- folder.folders.right
     } yield {
@@ -282,6 +294,7 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadG
       case Left(error) => List()
       case Right(folders) => folders
     }
+  }
 
 
   private def getFile(path: String): Either[IOError, VirtualFile] = {

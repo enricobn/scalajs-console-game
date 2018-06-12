@@ -3,7 +3,7 @@ package org.enricobn.consolegame.content
 import org.enricobn.consolegame.UpickleUtils
 import org.enricobn.shell.impl.VirtualShell
 import org.enricobn.terminal.StringPub
-import org.enricobn.vfs.{IOError, VirtualFolder, VirtualPath}
+import org.enricobn.vfs.{Authentication, IOError}
 
 /**
   * Created by enrico on 12/25/16.
@@ -12,6 +12,8 @@ object Messages {
   val messagesPath = "/var/log/messages.log"
 
   def getMessages(shell: VirtualShell) : Either[IOError, Messages] = {
+    implicit val authentication: Authentication = shell.authentication
+
     for {
       messagesFile <- shell.toFile(messagesPath).right
       messages <- messagesFile.contentAs(classOf[Messages]).right
@@ -19,11 +21,13 @@ object Messages {
   }
 
   def addMessage(shell: VirtualShell, message: String) : Option[IOError] = {
+    implicit val authentication: Authentication = shell.authentication
+
     val runAddMessage = for {
       messagesFile <- shell.toFile(messagesPath).right
       messages <- messagesFile.contentAs(classOf[Messages]).right
       newMessages <- Right(messages.add(message)).right
-      result <- (messagesFile.content = newMessages).toLeft(()).right
+      result <- messagesFile.setContent(newMessages).toLeft(()).right
     } yield result
 
     runAddMessage.left.toOption

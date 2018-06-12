@@ -5,7 +5,7 @@ import org.enricobn.buyandsell.content._
 import org.enricobn.consolegame.{ConsoleGame, Serializer}
 import org.enricobn.shell.VirtualCommand
 import org.enricobn.shell.impl.VirtualShell
-import org.enricobn.vfs.IOError
+import org.enricobn.vfs.{Authentication, IOError}
 
 import scala.scalajs.js.annotation.{JSExport, JSExportAll}
 
@@ -19,6 +19,8 @@ class BuyAndSell(mainCanvasID: String, messagesCanvasID: String, loadGameID: Str
 extends ConsoleGame(mainCanvasID, messagesCanvasID, loadGameID, saveGameID) {
 
   override def onNewGame(shell: VirtualShell): Option[IOError] = {
+    implicit val authentication: Authentication = shell.authentication
+
     val gameStatistics = GameStatistics(10000)
     val city = City("Pisa", Statistics(100, 0))
     val market = Market(Map("gold" -> 1000, "silver" -> 500, "bronze" -> 100))
