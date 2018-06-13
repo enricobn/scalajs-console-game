@@ -2,6 +2,7 @@ DOING
 ------
 - on branch serialize-fs: fs serialization
   - on branch authentication: authentication in scalajs-vfs
+    - on branch passwd: passwd in scalajs-vfs
 
 NEXT
 -----

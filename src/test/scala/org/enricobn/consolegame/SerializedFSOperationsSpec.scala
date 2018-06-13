@@ -4,12 +4,11 @@ import org.enricobn.buyandsell.BuyAndSell
 import org.enricobn.consolegame.content.MessagesSerializer
 import org.enricobn.shell.impl.{VirtualShell, VirtualShellContextImpl}
 import org.enricobn.terminal.Terminal
-import org.enricobn.vfs.impl.{VirtualSecurityManagerImpl, VirtualUsersManagerImpl}
 import org.enricobn.vfs.inmemory.InMemoryFS
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.{FlatSpec, Matchers}
 
-import scala.language.reflectiveCalls
+import scala.language.{existentials, reflectiveCalls}
 
 class SerializedFSOperationsSpec extends FlatSpec with MockFactory with Matchers {
 
@@ -22,14 +21,17 @@ class SerializedFSOperationsSpec extends FlatSpec with MockFactory with Matchers
   def fixture = {
     val term = mock[Terminal]
     val rootPassword = "root"
-    val vum = new VirtualUsersManagerImpl(rootPassword)
-    val vsm = new VirtualSecurityManagerImpl(vum)
+
+
+    val fs = new InMemoryFS(rootPassword)
+
+    val vum = fs.vum
+    val vsm = fs.vsm
 
     val _rootAuthentication = vum.logRoot(rootPassword).right.get
 
     vum.addUser("enrico", "enrico")(_rootAuthentication)
 
-    val fs = new InMemoryFS(vum, vsm)
     val context = new VirtualShellContextImpl()
     val virtualShell = new VirtualShell(term, vum, vsm, context, fs.root, _rootAuthentication)
 

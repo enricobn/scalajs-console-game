@@ -8,7 +8,6 @@ import org.enricobn.shell.impl._
 import org.enricobn.shell.{VirtualCommand, VirtualShellContext}
 import org.enricobn.terminal._
 import org.enricobn.vfs._
-import org.enricobn.vfs.impl.{VirtualSecurityManagerImpl, VirtualUsersManagerImpl}
 import org.enricobn.vfs.inmemory.InMemoryFS
 import org.enricobn.vfs.utils.Utils
 import org.scalajs.dom
@@ -86,10 +85,10 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadG
   private val messagesInput = new CanvasInputHandler(messagesCanvasID)
   private val messagesTerminal = new TerminalImpl(messagesScreen, messagesInput, logger, "typewriter-key-1.wav")
   private val rootPassword = UUID.randomUUID().toString
-  private var vum = new VirtualUsersManagerImpl(rootPassword)
-  private var vsm = new VirtualSecurityManagerImpl(vum)
   private val userPassword = UUID.randomUUID().toString
-  private var fs = new InMemoryFS(vum, vsm)
+  private var fs = new InMemoryFS(rootPassword)
+  private var vum = fs.vum
+  private var vsm = fs.vsm
   private var context: VirtualShellContext = new VirtualShellContextImpl()
   private var rootAuthentication = vum.logRoot(rootPassword).right.get
   private var shell = new VirtualShell(mainTerminal, vum, vsm, context, fs.root, rootAuthentication)
@@ -178,28 +177,24 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadG
   private def fileReaderOnLoad(f: File, r: FileReader)(e: UIEvent) {
     val resultContent = r.result.toString
 
-    val newVum = new VirtualUsersManagerImpl(rootPassword)
+    val newFs = new InMemoryFS(rootPassword)
 
-    val newRootAuthentication = newVum.logRoot(rootPassword).right.get
-
-    val newVsm = new VirtualSecurityManagerImpl(newVum)
-
-    val newFs = new InMemoryFS(newVum, newVsm)
+    val newRootAuthentication = newFs.vum.logRoot(rootPassword).right.get
 
     val newContext = new VirtualShellContextImpl()
 
-    val newShell = new VirtualShell(mainTerminal, newVum, newVsm, newContext, newFs.root, newRootAuthentication)
+    val newShell = new VirtualShell(mainTerminal, newFs.vum, newFs.vsm, newContext, newFs.root, newRootAuthentication)
 
     // TODO is stopInteractiveCommands needed?
     messagesShell.stopInteractiveCommands({ () =>
       implicit val authentication : Authentication = newRootAuthentication
 
       val run = for {
-        _ <- newVum.addUser(userName, userPassword).toLeft(()).right
+        _ <- newFs.vum.addUser(userName, userPassword).toLeft(()).right
         serializedFS <- UpickleUtils.readE[SerializedFS](resultContent).right
         _ <- SerializedFSOperations.load(newShell, getSerializersMap, serializedFS).right
         showPrompt <- messagesShell.run(MessagesCommand.NAME).right
-        _ <- ConsoleGame.initFS(newFs, newVum, newContext, userName, allCommands).right
+        _ <- ConsoleGame.initFS(newFs, newFs.vum, newContext, userName, allCommands).right
         _ <- newShell.login(userName, userPassword).right
       } yield {
         messagesTerminal.add(s"Game loaded from ${f.name}\n")
@@ -215,8 +210,8 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadG
           false
         case Right(showPrompt) =>
           fs = newFs
-          vum = newVum
-          vsm = newVsm
+          vum = newFs.vum
+          vsm = newFs.vsm
           context = newContext
           rootAuthentication = newRootAuthentication
 
