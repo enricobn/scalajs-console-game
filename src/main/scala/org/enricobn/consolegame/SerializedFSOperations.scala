@@ -35,7 +35,9 @@ object SerializedFSOperations {
         val file = shell.toFolder(path.parentFragments.get.path).right.get.touch(path.name).right.get
         file.chown(serializedFile.owner)
         file.chmod(serializedFile.permissions)
-        ((serializedFile, serializer), serializer.deserialize(serializedFile.ser))
+
+        fileSerializerDeSerialized(serializedFile, serializer)
+
       }).right
       contentFiles <- FunctionalUtils.lift(serializedAndSerializerAndContent.map {case ((serializedFile, serializer), content) =>
         (content, shell.toFile(serializedFile.path))
@@ -60,7 +62,7 @@ object SerializedFSOperations {
       fileContents <- FunctionalUtils.lift(
         files.map(file => (file, file.getContent))
       ).right
-      fileContentSerializers <- Right(FunctionalUtils.allSome(fileContents.map {case (file, content) => ((file,content), serializers.get(content.getClass.getName))})).right
+      fileContentSerializers <- Right(FunctionalUtils.allSome(fileContents.map { fileContentSerializer(_, serializers)})).right
       serializedContents <- FunctionalUtils.lift(
         fileContentSerializers.map { case ((file, content), serializer) => ((file, serializer), serializer.serialize(content))
         }).right
@@ -72,6 +74,16 @@ object SerializedFSOperations {
       SerializedFS(folders, files)
     }
 
+  private def fileSerializerDeSerialized(serializedFile: SerializedFile, serializer: Serializer) = {
+    ((serializedFile, serializer), serializer.deserialize(serializedFile.ser))
+  }
+
+  private def fileContentSerializer(fileContent: (VirtualFile, AnyRef), serializers: Map[String, Serializer]) = {
+    val (file, content) = fileContent
+    println(s"Serializing $file " + content.getClass.getName)
+    ((file, content), serializers.get(content.getClass.getName))
+  }
+
   private def mkdir(shell:VirtualShell, path: String)(implicit authentication: Authentication) : Either[IOError, VirtualFolder] = {
     val virtualPath = VirtualPath(path)
 
@@ -79,7 +91,13 @@ object SerializedFSOperations {
 
     shell.toFolder(parentPath) match {
       case Left(error) => s"Cannot make directory $path, cannot find $parentPath : ${error.message}".ioErrorE
-      case Right(parent) => parent.mkdir(virtualPath.name)
+      case Right(parent) =>
+        parent.findFolder(virtualPath.name) match {
+          case Right(Some(folder)) => Right(folder)
+          case Right(None) => parent.mkdir(virtualPath.name)
+          case Left(error) => Left(error)
+        }
+
     }
   }
 

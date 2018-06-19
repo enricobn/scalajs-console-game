@@ -55,8 +55,8 @@ case class Messages(messages: Seq[String]) {
 
 object MessagesSerializer extends SimpleSerializer(classOf[Messages]) {
 
-  override def deserialize(ser: String): Either[IOError, Messages] = UpickleUtils.readE[Messages](ser)
-
   override def serializeIt(content: Messages): Either[IOError, String] = UpickleUtils.writeE(content)
+
+  override def deserialize(ser: String): Either[IOError, Messages] = UpickleUtils.readE[Messages](ser)
 
 }

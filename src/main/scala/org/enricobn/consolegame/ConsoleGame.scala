@@ -3,7 +3,7 @@ package org.enricobn.consolegame
 import java.util.UUID
 
 import org.enricobn.consolegame.commands.MessagesCommand
-import org.enricobn.consolegame.content.{Messages, MessagesSerializer}
+import org.enricobn.consolegame.content.{Messages, MessagesSerializer, SimpleSerializer}
 import org.enricobn.shell.impl._
 import org.enricobn.shell.{VirtualCommand, VirtualShellContext}
 import org.enricobn.terminal._
@@ -160,7 +160,7 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadG
   }
 
   private def getGlobalSerializers = {
-    List(MessagesSerializer)
+    List(MessagesSerializer, StringListSerializer, StringMapSerializer)
   }
 
   private def readGame(input: Input)(evt: Event): Unit = {
@@ -303,3 +303,19 @@ case class SerializedFile(path: String, owner: String, permissions: Int, seriali
 case class SerializedFolder(path: String, owner: String, permissions: Int)
 
 case class SerializedFS(folders: List[SerializedFolder], files: List[SerializedFile])
+
+object StringListSerializer extends SimpleSerializer(classOf[StringList]) {
+
+  override def serializeIt(content: StringList): Either[IOError, String] = UpickleUtils.writeE(content)
+
+  override def deserialize(ser: String): Either[IOError, AnyRef] = UpickleUtils.readE[StringList](ser)
+
+}
+
+object StringMapSerializer extends SimpleSerializer(classOf[StringMap]) {
+
+  override def serializeIt(content: StringMap): Either[IOError, String] = UpickleUtils.writeE(content)
+
+  override def deserialize(ser: String): Either[IOError, AnyRef] = UpickleUtils.readE[StringMap](ser)
+
+}
