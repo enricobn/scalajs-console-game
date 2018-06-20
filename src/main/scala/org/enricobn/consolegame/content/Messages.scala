@@ -2,7 +2,7 @@ package org.enricobn.consolegame.content
 
 import org.enricobn.consolegame.UpickleUtils
 import org.enricobn.shell.impl.VirtualShell
-import org.enricobn.terminal.StringPub
+import org.enricobn.terminal.{StringPub, Terminal}
 import org.enricobn.vfs.{Authentication, IOError}
 
 /**
@@ -50,7 +50,7 @@ case class Messages(messages: Seq[String]) {
     publisher.removeSubscription(subscriber)
   }
 
-  override def toString: String = messages.mkString("\n")
+  override def toString: String = messages.mkString(Terminal.LF)
 }
 
 object MessagesSerializer extends SimpleSerializer(classOf[Messages]) {

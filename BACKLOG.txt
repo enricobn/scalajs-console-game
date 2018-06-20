@@ -6,6 +6,7 @@ DOING
 
 NEXT
 -----
+- only the first message is shown in messages console!!!
 - can I move SerializedFS and SerializedFSOperations in scalajs-vfs?
 - make static fun to get Market from home
 - serializers: check for duplicate name

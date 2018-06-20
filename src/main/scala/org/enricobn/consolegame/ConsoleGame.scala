@@ -46,21 +46,15 @@ object ConsoleGame {
       _ <- context.createCommandFile(bin, new CatCommand).right
       userCommands <- allCommands.right
       _ <- Utils.lift(userCommands.map(command => {
-        context.createCommandFile(usrBin, command)
-      })).right
-    } yield {
-      for {
-        messagesLog <- varLog.findFile("messages.log").right
-        messagesFile <- (if (messagesLog.isDefined) { Right(messagesLog.get) } else { varLog.createFile("messages.log", Messages(Seq.empty)) }).right
-        // TODO I don't like that user has the ability to delete the file, remove logs etc...
-        // But it's not easy to avoid that and grant access to add messages, perhaps I need some
-        // system call handling, but I think it's too complicated for this project ...
-        _ <- messagesFile.chown(userName).toLeft(()).right
-      } yield {
-        context.addToPath(bin)
-        context.addToPath(usrBin)
-      }
-    }
+            context.createCommandFile(usrBin, command)
+          })).right
+      messagesLog <- varLog.findFile("messages.log").right
+      messagesFile <- (if (messagesLog.isDefined) { Right(messagesLog.get) } else { varLog.createFile("messages.log", Messages(Seq.empty)) }).right
+      // TODO I don't like that user has the ability to delete the file, remove logs etc...
+      // But it's not easy to avoid that and grant access to add messages, perhaps I need some
+      // system call handling, but I think it's too complicated for this project ...
+      result <- messagesFile.chown(userName).toLeft(()).right
+    } yield result
 
   private def mkdir(parentFolder: VirtualFolder, name: String)(implicit authentication: Authentication) : Either[IOError, VirtualFolder] = {
     parentFolder.findFolder(name) match {
@@ -89,10 +83,12 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadG
   private var fs = new InMemoryFS(rootPassword)
   private var vum = fs.vum
   private var vsm = fs.vsm
-  private var context: VirtualShellContext = new VirtualShellContextImpl()
+  private var context: VirtualShellContext = new VirtualShellContextImpl(fs)
   private var rootAuthentication = vum.logRoot(rootPassword).right.get
   private var shell = new VirtualShell(mainTerminal, vum, vsm, context, fs.root, rootAuthentication)
   private var messagesShell = new VirtualShell(messagesTerminal, vum, vsm, context, fs.root, rootAuthentication)
+
+  context.setProfile(new VirtualShellFileProfile(shell))
 
   private var userName : String = _
 
@@ -111,11 +107,17 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadG
   }
 
   private def runInit() {
+    implicit val authentication = rootAuthentication
     val runInit = for {
-      _ <- vum.addUser(userName, userPassword)(rootAuthentication).toLeft(()).right
-      _ <- ConsoleGame.initFS(fs, vum, context, userName, allCommands)(rootAuthentication).right
+      _ <- vum.addUser(userName, userPassword).toLeft(()).right
+      _ <- ConsoleGame.initFS(fs, vum, context, userName, allCommands).right
       userHome <- shell.toFolder("/home/" + userName).right
+      _ <- messagesShell.login(userName, userPassword).right
       _ <- shell.login(userName, userPassword).right
+      bin <- fs.root.resolveFolderOrError("/bin").right
+      usrBin <- fs.root.resolveFolderOrError("/usr/bin").right
+      _ <- context.addToPath(bin).right
+      _ <- context.addToPath(usrBin).right
       _ <- onNewGame(shell).toLeft(()).right
     } yield {
       shell.currentFolder = userHome
@@ -181,9 +183,11 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadG
 
     val newRootAuthentication = newFs.vum.logRoot(rootPassword).right.get
 
-    val newContext = new VirtualShellContextImpl()
+    val newContext = new VirtualShellContextImpl(newFs)
 
     val newShell = new VirtualShell(mainTerminal, newFs.vum, newFs.vsm, newContext, newFs.root, newRootAuthentication)
+
+    newContext.setProfile(new VirtualShellFileProfile(newShell))
 
     // TODO is stopInteractiveCommands needed?
     messagesShell.stopInteractiveCommands({ () =>
@@ -271,7 +275,7 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadG
     } yield {
       files ++ folders.flatMap(getAllFiles)
     }) match {
-      case Left(error) => Set()
+      case Left(_) => Set()
       case Right(files) => files
     }
   }
@@ -286,11 +290,10 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadG
     } yield {
       folders.toList ++ folders.flatMap(getAllFolders)
     }) match {
-      case Left(error) => List()
+      case Left(_) => List()
       case Right(folders) => folders
     }
   }
-
 
   private def getFile(path: String): Either[IOError, VirtualFile] = {
     shell.toFile(path)

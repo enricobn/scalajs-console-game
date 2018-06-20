@@ -32,7 +32,7 @@ class SerializedFSOperationsSpec extends FlatSpec with MockFactory with Matchers
 
     vum.addUser("enrico", "enrico")(_rootAuthentication)
 
-    val context = new VirtualShellContextImpl()
+    val context = new VirtualShellContextImpl(fs)
     val virtualShell = new VirtualShell(term, vum, vsm, context, fs.root, _rootAuthentication)
 
     new {
@@ -48,9 +48,6 @@ class SerializedFSOperationsSpec extends FlatSpec with MockFactory with Matchers
     val f = fixture
     val content = "{\"folders\":[{\"path\":\"/bin\",\"owner\":\"root\",\"permissions\":775},{\"path\":\"/var\",\"owner\":\"root\",\"permissions\":775},{\"path\":\"/usr\",\"owner\":\"root\",\"permissions\":775},{\"path\":\"/home\",\"owner\":\"root\",\"permissions\":775},{\"path\":\"/var/log\",\"owner\":\"root\",\"permissions\":775},{\"path\":\"/usr/bin\",\"owner\":\"root\",\"permissions\":775},{\"path\":\"/home/enrico\",\"owner\":\"enrico\",\"permissions\":775},{\"path\":\"/home/enrico/Pisa\",\"owner\":\"enrico\",\"permissions\":775}],\"files\":[{\"path\":\"/var/log/messages.log\",\"owner\":\"enrico\",\"permissions\":664,\"serializerName\":\"org.enricobn.consolegame.content.Messages\",\"ser\":\"{\\\"messages\\\":[\\\"sell 1 of silver\\\"]}\"},{\"path\":\"/home/enrico/gamestats\",\"owner\":\"enrico\",\"permissions\":664,\"serializerName\":\"org.enricobn.buyandsell.content.GameStatistics\",\"ser\":\"{\\\"money\\\":10000}\"},{\"path\":\"/home/enrico/Pisa/city\",\"owner\":\"enrico\",\"permissions\":664,\"serializerName\":\"org.enricobn.buyandsell.content.City\",\"ser\":\"{\\\"name\\\":\\\"Pisa\\\",\\\"statistics\\\":{\\\"population\\\":100,\\\"employed\\\":0}}\"},{\"path\":\"/home/enrico/Pisa/warehouse\",\"owner\":\"enrico\",\"permissions\":664,\"serializerName\":\"org.enricobn.buyandsell.content.Warehouse\",\"ser\":\"{\\\"goods\\\":{\\\"gold\\\":2,\\\"silver\\\":9,\\\"bronze\\\":20}}\"},{\"path\":\"/home/enrico/market\",\"owner\":\"enrico\",\"permissions\":664,\"serializerName\":\"org.enricobn.buyandsell.content.Market\",\"ser\":\"{\\\"prices\\\":{\\\"gold\\\":1000,\\\"silver\\\":500,\\\"bronze\\\":100}}\"}]}"
     val serializedFS = UpickleUtils.readE[SerializedFS](content)
-
-    serializedFS.right.get.folders.foreach(println(_))
-    serializedFS.right.get.files.foreach(println(_))
 
     serializedFS.left.map({ error => fail(error.message) })
 
