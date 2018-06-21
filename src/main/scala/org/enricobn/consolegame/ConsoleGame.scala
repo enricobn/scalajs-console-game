@@ -8,8 +8,7 @@ import org.enricobn.shell.impl._
 import org.enricobn.shell.{VirtualCommand, VirtualShellContext}
 import org.enricobn.terminal._
 import org.enricobn.vfs._
-import org.enricobn.vfs.inmemory.InMemoryFS
-import org.enricobn.vfs.utils.Utils
+import org.enricobn.vfs.impl.UnixLikeInMemoryFS
 import org.scalajs.dom
 import org.scalajs.dom.FileReader
 import org.scalajs.dom.html.{Anchor, Canvas, Input}
@@ -29,40 +28,20 @@ object ConsoleGame {
       case _ => Some(IOError("No parent"))
     }
 
-  def initFS(fs: VirtualFS, vum: VirtualUsersManager, context: VirtualShellContext, userName: String,
+  def initFS(fs: UnixLikeInMemoryFS, vum: VirtualUsersManager, context: VirtualShellContext, userName: String,
              allCommands : Either[IOError, Seq[VirtualCommand]])(implicit authentication: Authentication) : Either[IOError,Unit] =
     for {
-      bin <- mkdir(fs.root, "bin").right
-      usr <- mkdir(fs.root, "usr").right
-      var_ <- mkdir(fs.root, "var").right
-      varLog <- mkdir(var_, "log").right
-      usrBin <- mkdir(usr, "bin").right
-      home <- mkdir(fs.root, "home").right
-      // TODO would it be better if I create the home folder in vum.addUser?
-      userHome <- mkdir(home, userName).right
-      _ <- userHome.chown(userName).toLeft(()).right
-      _ <- context.createCommandFile(bin, new LsCommand).right
-      _ <- context.createCommandFile(bin, new CdCommand).right
-      _ <- context.createCommandFile(bin, new CatCommand).right
+      _ <- context.createCommandFiles(fs.bin, new LsCommand, new CdCommand, new CatCommand).right
       userCommands <- allCommands.right
-      _ <- Utils.lift(userCommands.map(command => {
-            context.createCommandFile(usrBin, command)
-          })).right
-      messagesLog <- varLog.findFile("messages.log").right
-      messagesFile <- (if (messagesLog.isDefined) { Right(messagesLog.get) } else { varLog.createFile("messages.log", Messages(Seq.empty)) }).right
+      _ <- context.createCommandFiles(fs.usrBin, userCommands :_*).right
+      messagesLog <- fs.varLog.findFile("messages.log").right
+      messagesFile <- (if (messagesLog.isDefined) { Right(messagesLog.get) } else { fs.varLog.createFile("messages.log", Messages(Seq.empty)) }).right
       // TODO I don't like that user has the ability to delete the file, remove logs etc...
       // But it's not easy to avoid that and grant access to add messages, perhaps I need some
       // system call handling, but I think it's too complicated for this project ...
-      result <- messagesFile.chown(userName).toLeft(()).right
-    } yield result
+      _ <- messagesFile.chown(userName).toLeft(()).right
+    } yield ()
 
-  private def mkdir(parentFolder: VirtualFolder, name: String)(implicit authentication: Authentication) : Either[IOError, VirtualFolder] = {
-    parentFolder.findFolder(name) match {
-      case Right(Some(folder)) => Right(folder)
-      case Right(None) => parentFolder.mkdir(name)
-      case Left(error) => Left(error)
-    }
-  }
 }
 
 /**
@@ -80,13 +59,25 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadG
   private val messagesTerminal = new TerminalImpl(messagesScreen, messagesInput, logger, "typewriter-key-1.wav")
   private val rootPassword = UUID.randomUUID().toString
   private val userPassword = UUID.randomUUID().toString
-  private var fs = new InMemoryFS(rootPassword)
-  private var vum = fs.vum
-  private var vsm = fs.vsm
-  private var context: VirtualShellContext = new VirtualShellContextImpl(fs)
-  private var rootAuthentication = vum.logRoot(rootPassword).right.get
-  private var shell = new VirtualShell(mainTerminal, vum, vsm, context, fs.root, rootAuthentication)
-  private var messagesShell = new VirtualShell(messagesTerminal, vum, vsm, context, fs.root, rootAuthentication)
+  private var fs : UnixLikeInMemoryFS = _
+  private var vum : VirtualUsersManager = _
+  private var vsm : VirtualSecurityManager = _
+  private var context: VirtualShellContext = _
+  private var rootAuthentication: Authentication = _
+  private var shell: VirtualShell = _
+  private var messagesShell: VirtualShell = _
+
+  UnixLikeInMemoryFS(rootPassword) match {
+    case Right(unixLikeInMemoryFS) =>
+      fs = unixLikeInMemoryFS
+      vum = fs.vum
+      vsm = fs.vsm
+      context = new VirtualShellContextImpl(fs)
+      rootAuthentication = vum.logRoot(rootPassword).right.get
+      shell = new VirtualShell(mainTerminal, vum, vsm, context, fs.root, rootAuthentication)
+      messagesShell = new VirtualShell(messagesTerminal, vum, vsm, context, fs.root, rootAuthentication)
+    case Left(error) => dom.window.alert(s"Error initializing: ${error.message}")
+  }
 
   context.setProfile(new VirtualShellFileProfile(shell))
 
@@ -179,7 +170,8 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadG
   private def fileReaderOnLoad(f: File, r: FileReader)(e: UIEvent) {
     val resultContent = r.result.toString
 
-    val newFs = new InMemoryFS(rootPassword)
+    // TODO error handling
+    val newFs = UnixLikeInMemoryFS(rootPassword).right.get
 
     val newRootAuthentication = newFs.vum.logRoot(rootPassword).right.get
 

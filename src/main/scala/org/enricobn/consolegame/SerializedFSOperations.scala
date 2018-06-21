@@ -1,7 +1,6 @@
 package org.enricobn.consolegame
 
 import org.enricobn.shell.impl.VirtualShell
-import org.enricobn.shell.utils.FunctionalUtils
 import org.enricobn.vfs.IOError._
 import org.enricobn.vfs._
 import org.enricobn.vfs.utils.Utils
@@ -25,12 +24,12 @@ object SerializedFSOperations {
           result
         }
       })).right
-      serializedAndSerializers <- FunctionalUtils.liftTuple(serializedFS.files.map(serializedFile => {
+      serializedAndSerializers <- Utils.liftTuple(serializedFS.files.map(serializedFile => {
         val serializerE = serializers.get(serializedFile.serializerName)
           .toRight(IOError(s"Cannot find serializer with name=${serializedFile.serializerName}"))
         (serializedFile, serializerE)
       })).right
-      serializedAndSerializerAndContent <- FunctionalUtils.liftTuple(serializedAndSerializers.map {case (serializedFile, serializer) =>
+      serializedAndSerializerAndContent <- Utils.liftTuple(serializedAndSerializers.map {case (serializedFile, serializer) =>
         // TODO errors
         val path = VirtualPath(serializedFile.path)
         val file = shell.toFolder(path.parentFragments.get.path).right.get.touch(path.name).right.get
@@ -40,7 +39,7 @@ object SerializedFSOperations {
         fileSerializerDeSerialized(serializedFile, serializer)
 
       }).right
-      contentFiles <- FunctionalUtils.liftTuple(serializedAndSerializerAndContent.map {case ((serializedFile, serializer), content) =>
+      contentFiles <- Utils.liftTuple(serializedAndSerializerAndContent.map {case ((serializedFile, serializer), content) =>
         (content, shell.toFile(serializedFile.path))
       }).right
       result <- Utils.mapFirstSome[(AnyRef, VirtualFile), IOError](contentFiles,
@@ -60,11 +59,11 @@ object SerializedFSOperations {
   def build(files: Set[VirtualFile], folders: List[VirtualFolder], serializers: Map[String, Serializer])
            (implicit authentication: Authentication): Either[IOError, SerializedFS] =
     for {
-      fileContents <- FunctionalUtils.liftTuple(
+      fileContents <- Utils.liftTuple(
         files.map(file => (file, file.getContent))
       ).right
-      fileContentSerializers <- Right(FunctionalUtils.allSome(fileContents.map { fileContentSerializer(_, serializers)})).right
-      serializedContents <- FunctionalUtils.liftTuple(
+      fileContentSerializers <- Right(Utils.allSome(fileContents.map { fileContentSerializer(_, serializers)})).right
+      serializedContents <- Utils.liftTuple(
         fileContentSerializers.map { case ((file, content), serializer) => ((file, serializer), serializer.serialize(content))
         }).right
       files <- Right(serializedContents.map { case ((file, serializer), ser) =>
