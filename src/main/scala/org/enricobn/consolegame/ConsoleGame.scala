@@ -61,7 +61,6 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadG
   private val userPassword = UUID.randomUUID().toString
   private var fs : UnixLikeInMemoryFS = _
   private var vum : VirtualUsersManager = _
-  private var vsm : VirtualSecurityManager = _
   private var context: VirtualShellContext = _
   private var rootAuthentication: Authentication = _
   private var shell: VirtualShell = _
@@ -71,15 +70,12 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadG
     case Right(unixLikeInMemoryFS) =>
       fs = unixLikeInMemoryFS
       vum = fs.vum
-      vsm = fs.vsm
-      context = new VirtualShellContextImpl(fs)
       rootAuthentication = vum.logRoot(rootPassword).right.get
-      shell = new VirtualShell(mainTerminal, vum, vsm, context, fs.root, rootAuthentication)
-      messagesShell = new VirtualShell(messagesTerminal, vum, vsm, context, fs.root, rootAuthentication)
+      shell = UnixLikeVirtualShell(fs, mainTerminal, fs.root, rootAuthentication)
+      context = shell.context
+      messagesShell = UnixLikeVirtualShell(fs, messagesTerminal, fs.root, rootAuthentication)
     case Left(error) => dom.window.alert(s"Error initializing: ${error.message}")
   }
-
-  context.setProfile(new VirtualShellFileProfile(shell))
 
   private var userName : String = _
 
@@ -98,7 +94,8 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadG
   }
 
   private def runInit() {
-    implicit val authentication = rootAuthentication
+    implicit val authentication: Authentication = rootAuthentication
+
     val runInit = for {
       _ <- vum.addUser(userName, userPassword).toLeft(()).right
       _ <- ConsoleGame.initFS(fs, vum, context, userName, allCommands).right
@@ -175,11 +172,7 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadG
 
     val newRootAuthentication = newFs.vum.logRoot(rootPassword).right.get
 
-    val newContext = new VirtualShellContextImpl(newFs)
-
-    val newShell = new VirtualShell(mainTerminal, newFs.vum, newFs.vsm, newContext, newFs.root, newRootAuthentication)
-
-    newContext.setProfile(new VirtualShellFileProfile(newShell))
+    val newShell = UnixLikeVirtualShell(newFs, mainTerminal, newFs.root, newRootAuthentication)
 
     // TODO is stopInteractiveCommands needed?
     messagesShell.stopInteractiveCommands({ () =>
@@ -190,12 +183,9 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadG
         serializedFS <- UpickleUtils.readE[SerializedFS](resultContent).right
         _ <- SerializedFSOperations.load(newShell, getSerializersMap, serializedFS).right
         showPrompt <- messagesShell.run(MessagesCommand.NAME).right
-        _ <- ConsoleGame.initFS(newFs, newFs.vum, newContext, userName, allCommands).right
+        _ <- ConsoleGame.initFS(newFs, newFs.vum, newShell.context, userName, allCommands).right
         _ <- newShell.login(userName, userPassword).right
       } yield {
-        messagesTerminal.add(s"Game loaded from ${f.name}\n")
-        messagesTerminal.flush()
-
         showPrompt
       }
 
@@ -205,30 +195,47 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadG
           dom.window.alert("Error loading game. See javascript console for details.")
           false
         case Right(showPrompt) =>
-          fs = newFs
-          vum = newFs.vum
-          vsm = newFs.vsm
-          context = newContext
-          rootAuthentication = newRootAuthentication
+          try {
+            messagesTerminal.add(s"Game loaded from ${f.name}\n")
+            messagesTerminal.flush()
 
-          messagesShell.stop()
-          messagesShell = new VirtualShell(messagesTerminal, vum, vsm, context, fs.root, newRootAuthentication)
-          messagesShell.startWithCommand(MessagesCommand.NAME)
+            fs = newFs
+            vum = newFs.vum
+            context = newShell.context
+            rootAuthentication = newRootAuthentication
 
-          shell.stop()
-          shell = newShell
-          // TODO error
-          shell.currentFolder = shell.toFolder("/home/" + userName).right.get
-          mainTerminal.add("\u001b[2J\u001b[1;1H") // clear screen an reset cursor to 1, 1
-          shell.start()
+            println("1")
+
+            // TODO error
+            val homeFolder = newShell.toFolder("/home/" + userName).right.get
+
+            messagesShell.stop()
+            messagesShell = UnixLikeVirtualShell(newFs, messagesTerminal, homeFolder, newRootAuthentication)
+
+            // TODO Error
+            messagesShell.login(userName, userPassword)
+
+            messagesShell.startWithCommand(MessagesCommand.NAME)
+
+            shell.stop()
+            shell = newShell
+            shell.currentFolder = homeFolder
+            mainTerminal.add("\u001b[2J\u001b[1;1H") // clear screen an reset cursor to 1, 1
+            shell.start()
+          } catch {
+            case e: Exception =>
+              e.printStackTrace()
+
+              dom.window.alert("Error loading game. See javascript console for details.")
+
+              throw e
+          }
 
           showPrompt
       }
 
     })
 
-    // TODO Error
-    vum.logUser(userName, userPassword)
   }
 
   def onNewGame(shell: VirtualShell): Option[IOError]
