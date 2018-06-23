@@ -5,7 +5,7 @@ import java.util.UUID
 import org.enricobn.consolegame.commands.MessagesCommand
 import org.enricobn.consolegame.content.{Messages, MessagesSerializer, SimpleSerializer}
 import org.enricobn.shell.impl._
-import org.enricobn.shell.{VirtualCommand, VirtualShellContext}
+import org.enricobn.shell.{VirtualCommand, VirtualCommandOperations, VirtualShellContext}
 import org.enricobn.terminal._
 import org.enricobn.vfs._
 import org.enricobn.vfs.impl.UnixLikeInMemoryFS
@@ -28,12 +28,12 @@ object ConsoleGame {
       case _ => Some(IOError("No parent"))
     }
 
-  def initFS(fs: UnixLikeInMemoryFS, vum: VirtualUsersManager, context: VirtualShellContext, userName: String,
-             allCommands : Either[IOError, Seq[VirtualCommand]])(implicit authentication: Authentication) : Either[IOError,Unit] =
+  def initFS(fs: UnixLikeInMemoryFS, userName: String, allCommands : Either[IOError, Seq[VirtualCommand]])
+            (implicit authentication: Authentication) : Either[IOError,Unit] =
     for {
-      _ <- context.createCommandFiles(fs.bin, new LsCommand, new CdCommand, new CatCommand).right
+      _ <- VirtualCommandOperations.createCommandFiles(fs.bin, new LsCommand, new CdCommand, new CatCommand).right
       userCommands <- allCommands.right
-      _ <- context.createCommandFiles(fs.usrBin, userCommands :_*).right
+      _ <- VirtualCommandOperations.createCommandFiles(fs.usrBin, userCommands :_*).right
       messagesLog <- fs.varLog.findFile("messages.log").right
       messagesFile <- (if (messagesLog.isDefined) { Right(messagesLog.get) } else { fs.varLog.createFile("messages.log", Messages(Seq.empty)) }).right
       // TODO I don't like that user has the ability to delete the file, remove logs etc...
@@ -98,7 +98,7 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadG
 
     val runInit = for {
       _ <- vum.addUser(userName, userPassword).toLeft(()).right
-      _ <- ConsoleGame.initFS(fs, vum, context, userName, allCommands).right
+      _ <- ConsoleGame.initFS(fs, userName, allCommands).right
       userHome <- shell.toFolder("/home/" + userName).right
       _ <- messagesShell.login(userName, userPassword).right
       _ <- shell.login(userName, userPassword).right
@@ -183,7 +183,7 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadG
         serializedFS <- UpickleUtils.readE[SerializedFS](resultContent).right
         _ <- SerializedFSOperations.load(newShell, getSerializersMap, serializedFS).right
         showPrompt <- messagesShell.run(MessagesCommand.NAME).right
-        _ <- ConsoleGame.initFS(newFs, newFs.vum, newShell.context, userName, allCommands).right
+        _ <- ConsoleGame.initFS(newFs, userName, allCommands).right
         _ <- newShell.login(userName, userPassword).right
       } yield {
         showPrompt
