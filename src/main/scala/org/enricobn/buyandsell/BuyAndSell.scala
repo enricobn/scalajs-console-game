@@ -10,7 +10,7 @@ import org.enricobn.vfs.{Authentication, IOError}
 import scala.scalajs.js.annotation.{JSExport, JSExportAll}
 
 object BuyAndSell {
-  val serializers = List(GameStatisticsSerializer, CitySerializer, MarketSerializer, WarehouseSerializer)
+  val serializers : Seq[Serializer] = List(GameStatisticsSerializer, CitySerializer, MarketSerializer, WarehouseSerializer)
 }
 
 @JSExport(name = "BuyAndSell")

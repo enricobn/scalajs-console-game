@@ -13,10 +13,9 @@ object SerializedFSOperations {
   def load(shell: VirtualShell, serializers: Map[String, Serializer], serializedFS: SerializedFS)
           (implicit authentication: Authentication) : Either[IOError, Unit] =
     for {
-      // I sort them so I crete them in order
+      // I sort them so I create them in order
       _ <- Utils.lift(serializedFS.folders.sortBy(_.path).map(serializedFolder => {
         for {
-          // TODO the path is absolute, I must make all intermediate folders
           folder <- mkdir(shell, serializedFolder.path).right
           _ <- folder.chown(serializedFolder.owner).toLeft(()).right
           result <- folder.chmod(serializedFolder.permissions).toLeft(()).right
@@ -29,16 +28,30 @@ object SerializedFSOperations {
           .toRight(IOError(s"Cannot find serializer with name=${serializedFile.serializerName}"))
         (serializedFile, serializerE)
       })).right
-      serializedAndSerializerAndContent <- Utils.liftTuple(serializedAndSerializers.map {case (serializedFile, serializer) =>
-        // TODO errors
-        val path = VirtualPath(serializedFile.path)
-        val file = shell.toFolder(path.parentFragments.get.path).right.get.touch(path.name).right.get
-        file.chown(serializedFile.owner)
-        file.chmod(serializedFile.permissions)
+      serializedAndSerializerAndContent <- {
+        val ssc = serializedAndSerializers.map { case (serializedFile, serializer) =>
+          val path = VirtualPath(serializedFile.path)
 
-        fileSerializerDeSerialized(serializedFile, serializer)
+          for {
+            parentFolder <- shell.toFolder(path.parentFragments.get.path).right
+            foundFile <- parentFolder.findFile(path.name).right
+            file <- if (foundFile.isDefined) {
+                      Right(foundFile.get).right
+                    } else {
+                      parentFolder.touch(path.name).right
+                    }
+            _ <- file.chown(serializedFile.owner).toLeft(()).right
+            _ <- file.chmod(serializedFile.permissions).toLeft(()).right
+          } yield fileSerializerDeSerialized(serializedFile, serializer)
+        }
 
-      }).right
+        val result = Utils.lift(ssc) match {
+          case Right(r) => Utils.liftTuple(r)
+          case Left(e) => Left(e)
+        }
+
+        result.right
+      }
       contentFiles <- Utils.liftTuple(serializedAndSerializerAndContent.map {case ((serializedFile, serializer), content) =>
         (content, shell.toFile(serializedFile.path))
       }).right
@@ -74,9 +87,9 @@ object SerializedFSOperations {
       SerializedFS(folders, files)
     }
 
-  private def fileSerializerDeSerialized(serializedFile: SerializedFile, serializer: Serializer) = {
+  private def fileSerializerDeSerialized(serializedFile: SerializedFile, serializer: Serializer):
+        ((SerializedFile, Serializer), Either[IOError, AnyRef]) =
     ((serializedFile, serializer), serializer.deserialize(serializedFile.ser))
-  }
 
   private def fileContentSerializer(fileContent: (VirtualFile, AnyRef), serializers: Map[String, Serializer]) = {
     val (file, content) = fileContent

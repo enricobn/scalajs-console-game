@@ -5,10 +5,9 @@ import java.util.UUID
 import org.enricobn.consolegame.commands.MessagesCommand
 import org.enricobn.consolegame.content.{Messages, MessagesSerializer, SimpleSerializer}
 import org.enricobn.shell.impl._
-import org.enricobn.shell.{VirtualCommand, VirtualCommandOperations, VirtualShellContext}
+import org.enricobn.shell.{VirtualCommand, VirtualCommandOperations}
 import org.enricobn.terminal._
 import org.enricobn.vfs._
-import org.enricobn.vfs.impl.UnixLikeInMemoryFS
 import org.scalajs.dom
 import org.scalajs.dom.FileReader
 import org.scalajs.dom.html.{Anchor, Canvas, Input}
@@ -42,6 +41,8 @@ object ConsoleGame {
       _ <- messagesFile.chown(userName).toLeft(()).right
     } yield ()
 
+  val globalSerializers : Seq[Serializer] = List(MessagesSerializer, StringListSerializer, StringMapSerializer)
+
 }
 
 /**
@@ -61,7 +62,6 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadG
   private val userPassword = UUID.randomUUID().toString
   private var fs : UnixLikeInMemoryFS = _
   private var vum : VirtualUsersManager = _
-  private var context: VirtualShellContext = _
   private var rootAuthentication: Authentication = _
   private var shell: VirtualShell = _
   private var messagesShell: VirtualShell = _
@@ -72,7 +72,6 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadG
       vum = fs.vum
       rootAuthentication = vum.logRoot(rootPassword).right.get
       shell = UnixLikeVirtualShell(fs, mainTerminal, fs.root, rootAuthentication)
-      context = shell.context
       messagesShell = UnixLikeVirtualShell(fs, messagesTerminal, fs.root, rootAuthentication)
     case Left(error) => dom.window.alert(s"Error initializing: ${error.message}")
   }
@@ -102,10 +101,6 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadG
       userHome <- shell.toFolder("/home/" + userName).right
       _ <- messagesShell.login(userName, userPassword).right
       _ <- shell.login(userName, userPassword).right
-      bin <- fs.root.resolveFolderOrError("/bin").right
-      usrBin <- fs.root.resolveFolderOrError("/usr/bin").right
-      _ <- context.addToPath(bin).right
-      _ <- context.addToPath(usrBin).right
       _ <- onNewGame(shell).toLeft(()).right
     } yield {
       shell.currentFolder = userHome
@@ -149,9 +144,7 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadG
     serializers
   }
 
-  private def getGlobalSerializers = {
-    List(MessagesSerializer, StringListSerializer, StringMapSerializer)
-  }
+  private def getGlobalSerializers = ConsoleGame.globalSerializers
 
   private def readGame(input: Input)(evt: Event): Unit = {
       //Retrieve the first (and only!) File from the FileList object
@@ -201,10 +194,7 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, loadG
 
             fs = newFs
             vum = newFs.vum
-            context = newShell.context
             rootAuthentication = newRootAuthentication
-
-            println("1")
 
             // TODO error
             val homeFolder = newShell.toFolder("/home/" + userName).right.get
