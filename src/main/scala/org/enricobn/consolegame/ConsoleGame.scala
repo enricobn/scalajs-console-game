@@ -43,6 +43,12 @@ object ConsoleGame {
 
   val globalSerializers : Seq[Serializer] = List(MessagesSerializer, StringListSerializer, StringMapSerializer)
 
+  def newMainShell(rootPassword: String, mainTerminal: Terminal) : Either[IOError, VirtualShell] =
+    for {
+      fs <- UnixLikeInMemoryFS(rootPassword).right
+      rootAuthentication <- fs.vum.logRoot(rootPassword).right
+    } yield UnixLikeVirtualShell(fs, mainTerminal, fs.root, rootAuthentication)
+
 }
 
 /**
@@ -50,6 +56,9 @@ object ConsoleGame {
   */
 @JSExportAll
 abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, newGameID: String, loadGameID: String, saveGameID: String) {
+
+  import org.enricobn.consolegame.ConsoleGame._
+
   private val logger = new JSLoggerImpl()
   private val mainScreen = new CanvasTextScreen(mainCanvasID, logger)
   private val mainInput = new CanvasInputHandler(mainCanvasID)
@@ -71,21 +80,17 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, newGa
   private val loadGame = dom.document.getElementById(loadGameID).asInstanceOf[Input]
   private val saveGameAnchor = dom.document.getElementById(saveGameID).asInstanceOf[Anchor]
 
-  newGameButton.onclick = newGame _
+  newGameButton.onclick = onNewGame _
   loadGame.addEventListener("change", readGame(loadGame) _, false)
-  saveGameAnchor.onclick = saveGame(saveGameAnchor) _
+  saveGameAnchor.onclick = onSaveGame(saveGameAnchor) _
 
-  // TODO I instantiate all only to do a readLine, but I cannot move the method in Terminal.
-  UnixLikeInMemoryFS(rootPassword) match {
-    case Right(unixLikeInMemoryFS) =>
-      fs = unixLikeInMemoryFS
-      vum = fs.vum
-      rootAuthentication = vum.logRoot(rootPassword).right.get
-      shell = UnixLikeVirtualShell(fs, mainTerminal, fs.root, rootAuthentication)
-    case Left(error) => dom.window.alert(s"Error initializing: ${error.message}")
-  }
+  def onNewGame(shell: VirtualShell): Option[IOError]
 
-  private def newGame(event: MouseEvent) {
+  def commands : Either[IOError, Seq[VirtualCommand]]
+
+  def getSerializers: Seq[Serializer]
+
+  private def onNewGame(event: MouseEvent) {
     mainCanvas.contentEditable = "true"
     mainCanvas.focus()
 
@@ -94,58 +99,58 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, newGa
     mainTerminal.add("Your name: ")
     mainTerminal.flush()
 
-    // TODO I don't really like to instantiate a shell only to do a readLine, but I cannot move the method in Terminal.
-
-    shell.readLine({ s =>
-      userName = s
-
-      runInit(s)
-    })
+    newMainShell(rootPassword, mainTerminal) match {
+      case Right(newShell) => newShell.readLine({ s => newGame(s, newShell) })
+      case Left(error) => dom.window.alert(s"Error initializing: ${error.message}")
+    }
 
   }
 
-  private def runInit(newUserName: String) {
+  private def newGame(newUserName: String, newShell: VirtualShell) {
+    implicit val authentication: Authentication = newShell.authentication
 
-    shell.stop()
+    import org.enricobn.vfs.utils.Utils.RightBiasedEither
 
-    if (messagesShell != null) {
-      messagesShell.stopInteractiveCommands(() => false)
-      messagesShell.stop()
-    }
-
-    //TODO the same code above exept for messageShell
-    UnixLikeInMemoryFS(rootPassword) match {
-      case Right(unixLikeInMemoryFS) =>
-        fs = unixLikeInMemoryFS
-        vum = fs.vum
-        rootAuthentication = vum.logRoot(rootPassword).right.get
-        shell = UnixLikeVirtualShell(fs, mainTerminal, fs.root, rootAuthentication)
-        messagesShell = UnixLikeVirtualShell(fs, messagesTerminal, fs.root, rootAuthentication)
-      case Left(error) => dom.window.alert(s"Error initializing: ${error.message}")
-    }
-    implicit val authentication: Authentication = rootAuthentication
+    // TODO error
+    val newFs = newShell.fs.asInstanceOf[UnixLikeInMemoryFS]
 
     val runInit = for {
-      _ <- vum.addUser(newUserName, userPassword).toLeft(()).right
-      _ <- ConsoleGame.initFS(fs, newUserName, allCommands).right
-      userHome <- shell.toFolder("/home/" + newUserName).right
-      _ <- messagesShell.login(newUserName, userPassword).right
-      _ <- shell.login(newUserName, userPassword).right
-      _ <- onNewGame(shell).toLeft(()).right
+      _ <- newFs.vum.addUser(newUserName, userPassword).toLeft(())
+      _ <- ConsoleGame.initFS(newFs, newUserName, allCommands)
+      userHome <- newShell.toFolder("/home/" + newUserName)
+      newMessagesShell = UnixLikeVirtualShell(newFs, messagesTerminal, newFs.root, rootAuthentication)
+      _ <- newMessagesShell.login(newUserName, userPassword)
+      _ <- newShell.login(newUserName, userPassword)
+      _ <- onNewGame(newShell).toLeft(())
     } yield {
-      shell.currentFolder = userHome
+      (userHome, newMessagesShell)
     }
 
     runInit match {
       case Left(error) => dom.window.alert(s"Error initializing: ${error.message}")
-      case _ =>
+      case Right((userHome, newMessageShell)) =>
+        if (shell != null) {
+          shell.stop()
+        }
+
+        if (messagesShell != null) {
+          messagesShell.stopInteractiveCommands(() => false)
+          messagesShell.stop()
+        }
+
         userName = newUserName
+        fs = newFs
+        vum = fs.vum
+        shell = newShell
+        shell.currentFolder = userHome
         shell.start()
+
+        messagesShell = newMessageShell
         messagesShell.startWithCommand(MessagesCommand.NAME)
     }
   }
 
-  private def saveGame(anchor: Anchor)(evt: MouseEvent): Unit = {
+  private def onSaveGame(anchor: Anchor)(evt: MouseEvent): Unit = {
     import org.enricobn.vfs.utils.Utils.RightBiasedEither
     val job =
       for {
@@ -270,10 +275,6 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, newGa
     }
   }
 
-  def onNewGame(shell: VirtualShell): Option[IOError]
-
-  def commands : Either[IOError, Seq[VirtualCommand]]
-
   private def allCommands : Either[IOError, Seq[VirtualCommand]] = {
     for {
       defCommands <- Right(defaultCommands).right
@@ -282,8 +283,6 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, newGa
   }
 
   private def defaultCommands : Seq[VirtualCommand] = Seq(new MessagesCommand())
-
-  def getSerializers: Seq[Serializer]
 
   // TODO error for logging (even for getAllFiles?)
   private def allFiles: Set[VirtualFile] = {
