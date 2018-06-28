@@ -15,8 +15,8 @@ object BuyAndSell {
 
 @JSExport(name = "BuyAndSell")
 @JSExportAll
-class BuyAndSell(mainCanvasID: String, messagesCanvasID: String, loadGameID: String, saveGameID: String)
-extends ConsoleGame(mainCanvasID, messagesCanvasID, loadGameID, saveGameID) {
+class BuyAndSell(mainCanvasID: String, messagesCanvasID: String, newGameID: String, loadGameID: String, saveGameID: String)
+extends ConsoleGame(mainCanvasID, messagesCanvasID, newGameID, loadGameID, saveGameID) {
 
   override def onNewGame(shell: VirtualShell): Option[IOError] = {
     implicit val authentication: Authentication = shell.authentication

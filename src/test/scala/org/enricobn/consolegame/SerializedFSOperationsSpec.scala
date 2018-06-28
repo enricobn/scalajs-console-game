@@ -20,7 +20,7 @@ class SerializedFSOperationsSpec extends FlatSpec with MockFactory with Matchers
     val term = mock[Terminal]
     val rootPassword = "root"
 
-    val fs = UnixLikeInMemoryFS(rootPassword).right.get//new InMemoryFS(rootPassword)
+    val fs = UnixLikeInMemoryFS(rootPassword).right.get
 
     val vum = fs.vum
 
