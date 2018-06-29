@@ -139,6 +139,9 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, newGa
         }
 
         userName = newUserName
+        if (fs != null) {
+          fs.notifier.shutdown()
+        }
         fs = newFs
         vum = fs.vum
         shell = newShell
@@ -236,6 +239,10 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, newGa
         try {
           messagesTerminal.add(s"Game loaded from ${f.name}\n")
           messagesTerminal.flush()
+
+          if (fs != null) {
+            fs.notifier.shutdown()
+          }
 
           fs = newFs
           vum = newFs.vum
