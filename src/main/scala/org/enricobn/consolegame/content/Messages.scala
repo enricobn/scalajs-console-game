@@ -2,7 +2,7 @@ package org.enricobn.consolegame.content
 
 import org.enricobn.consolegame.UpickleUtils
 import org.enricobn.shell.impl.VirtualShell
-import org.enricobn.terminal.{StringPub, Terminal}
+import org.enricobn.terminal.Terminal
 import org.enricobn.vfs.{Authentication, IOError, VirtualFile}
 
 /**
@@ -15,7 +15,7 @@ object Messages {
     implicit val authentication: Authentication = shell.authentication
 
     for {
-      messagesFile <- shell.toFile(messagesPath).right
+      messagesFile <- getMessagesFile(shell).right
       messages <- messagesFile.contentAs(classOf[Messages]).right
     } yield messages
   }
@@ -38,24 +38,14 @@ object Messages {
 
     runAddMessage.left.toOption
   }
+
 }
 
 case class Messages(messages: Seq[String]) {
-  private var publisher = new StringPub()
 
   def add(message: String): Messages = {
-    publisher.publish(message)
     val newMessages = Messages(messages :+ message)
-    newMessages.publisher = publisher
     newMessages
-  }
-
-  def subscribe(subscriber: StringPub#Sub): Unit = {
-    publisher.subscribe(subscriber)
-  }
-
-  def removeSubscription(subscriber: StringPub#Sub): Unit = {
-    publisher.removeSubscription(subscriber)
   }
 
   override def toString: String = messages.mkString(Terminal.LF)
