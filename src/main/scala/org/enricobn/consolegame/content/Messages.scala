@@ -3,13 +3,13 @@ package org.enricobn.consolegame.content
 import org.enricobn.consolegame.UpickleUtils
 import org.enricobn.shell.impl.VirtualShell
 import org.enricobn.terminal.{StringPub, Terminal}
-import org.enricobn.vfs.{Authentication, IOError}
+import org.enricobn.vfs.{Authentication, IOError, VirtualFile}
 
 /**
   * Created by enrico on 12/25/16.
   */
 object Messages {
-  val messagesPath = "/var/log/messages.log"
+  private val messagesPath = "/var/log/messages.log"
 
   def getMessages(shell: VirtualShell) : Either[IOError, Messages] = {
     implicit val authentication: Authentication = shell.authentication
@@ -18,6 +18,12 @@ object Messages {
       messagesFile <- shell.toFile(messagesPath).right
       messages <- messagesFile.contentAs(classOf[Messages]).right
     } yield messages
+  }
+
+  def getMessagesFile(shell: VirtualShell) : Either[IOError, VirtualFile] = {
+    implicit val authentication: Authentication = shell.authentication
+
+    shell.toFile(messagesPath)
   }
 
   def addMessage(shell: VirtualShell, message: String) : Option[IOError] = {
@@ -35,11 +41,13 @@ object Messages {
 }
 
 case class Messages(messages: Seq[String]) {
-  private val publisher = new StringPub()
+  private var publisher = new StringPub()
 
   def add(message: String): Messages = {
     publisher.publish(message)
-    Messages(messages :+ message)
+    val newMessages = Messages(messages :+ message)
+    newMessages.publisher = publisher
+    newMessages
   }
 
   def subscribe(subscriber: StringPub#Sub): Unit = {

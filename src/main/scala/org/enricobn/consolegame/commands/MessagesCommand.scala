@@ -3,7 +3,6 @@ package org.enricobn.consolegame.commands
 import org.enricobn.consolegame.content.Messages
 import org.enricobn.shell._
 import org.enricobn.shell.impl._
-import org.enricobn.terminal.StringPub
 import org.enricobn.vfs._
 
 import scala.collection.mutable
@@ -21,43 +20,41 @@ class MessagesCommand() extends VirtualCommand {
   override def name: String = NAME
 
   override def run(shell: VirtualShell, shellInput: ShellInput, shellOutput: ShellOutput, args: String*) = {
-    val stack = new mutable.Stack[String]()
+    val messagesSubscriber = new VirtualFSNotifierPub#Sub {
 
-    val messagesSubscriber = new StringPub#Sub {
-      override def notify(pub: mutable.Publisher[String], event: String): Unit = stack.push(event)
+      override def notify(pub: mutable.Publisher[Unit], event: Unit): Unit = {
+        for {
+          messages <- Messages.getMessages(shell).right
+        } yield {
+          shellOutput.write(messages.messages.last + "\n")
+          shellOutput.flush()
+        }
+      }
+
     }
+
     var _running = true
 
-    Messages.getMessages(shell) match {
-      case Left(error) => Left(error)
-      case Right(messages) =>
-        shellInput.subscribe(in => {
-          // Ctrl-C
-          if (in == 3.toChar.toString) {
-            _running = false
-            stack.clear()
-            messages.removeSubscription(messagesSubscriber)
-          }
-        })
+    for {
+      messagesFile <- Messages.getMessagesFile(shell).right
+    } yield {
+      shell.fs.notifier.addWatch(messagesFile, messagesSubscriber)
 
-        messages.subscribe(messagesSubscriber)
-
-        Right {
-          new RunContext() {
-
-            override def running: Boolean = _running
-
-            override def interactive: Boolean = true
-
-            override def update(): Unit = {
-              stack.foreach(message => {
-                shellOutput.write(message + "\n")
-                shellOutput.flush()
-              })
-              stack.clear()
-            }
-          }
+      shellInput.subscribe(in => {
+        // Ctrl-C
+        if (in == 3.toChar.toString) {
+          _running = false
+          shell.fs.notifier.removeWatch(messagesFile, messagesSubscriber)
         }
+      })
+
+      new RunContext() {
+
+        override def running: Boolean = _running
+
+        override def interactive: Boolean = true
+
+      }
     }
 
   }
