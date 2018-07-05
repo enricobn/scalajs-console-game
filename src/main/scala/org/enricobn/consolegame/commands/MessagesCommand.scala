@@ -44,8 +44,8 @@ class MessagesCommand() extends VirtualCommand {
       shellInput.subscribe(in => {
         // Ctrl-C
         if (in == 3.toChar.toString) {
-          _running = false
           shell.fs.notifier.removeWatch(messagesFile, messagesSubscriber)
+          _running = false
         }
       })
 
