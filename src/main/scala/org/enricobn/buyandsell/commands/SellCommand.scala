@@ -41,7 +41,7 @@ class SellCommand() extends VirtualCommandAbstract("sell", FILE, GOOD, QTY) {
 
   override def runParsed(shell: VirtualShell, shellInput: ShellInput, shellOutput: ShellOutput, args: Seq[Any])
                         (implicit authentication: Authentication)
-  : Either[IOError, RunContext] = {
+  : Either[IOError, VirtualProcess] = {
       val file = args.head.asInstanceOf[VirtualFile]
       val good = args(1).asInstanceOf[String]
       val qty = args(2).asInstanceOf[Int]
@@ -51,7 +51,7 @@ class SellCommand() extends VirtualCommandAbstract("sell", FILE, GOOD, QTY) {
         newWarehouse <- warehouse.sell(good, qty).right
         _ <- file.setContent(newWarehouse).toLeft(()).right
         _ <- Messages.addMessage(shell, "sell " + qty + " of " + good).toLeft(()).right
-      } yield new RunContext()
+      } yield new VirtualProcess()
 
   }
 

@@ -3,8 +3,8 @@ DOING
 
 NEXT
 -----
-- on new game clear messages terminal
-- only the first message is shown in messages console!!!
+- BUG: when I get an error from a command (for example when I enter an unknown command), no prompt is printed
+- BUG: when I issue a Ctr-C to the messages terminal, the first command I issue is not recognized
 - can I move SerializedFS and SerializedFSOperations in scalajs-vfs?
 - make static fun to get Market from home
 - serializers: check for duplicate name

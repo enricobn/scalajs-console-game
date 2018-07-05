@@ -19,10 +19,11 @@ class MessagesCommand() extends VirtualCommand {
 
   override def name: String = NAME
 
-  override def run(shell: VirtualShell, shellInput: ShellInput, shellOutput: ShellOutput, args: String*) = {
+  override def run(shell: VirtualShell, shellInput: ShellInput, shellOutput: ShellOutput, args: String*): Either[IOError, VirtualProcess] = {
     val messagesSubscriber = new VirtualFSNotifierPub#Sub {
 
       override def notify(pub: mutable.Publisher[Unit], event: Unit): Unit = {
+        // TODO error
         for {
           messages <- Messages.getMessages(shell).right
         } yield {
@@ -48,12 +49,8 @@ class MessagesCommand() extends VirtualCommand {
         }
       })
 
-      new RunContext() {
-
+      new VirtualProcess() {
         override def running: Boolean = _running
-
-        override def interactive: Boolean = true
-
       }
     }
 

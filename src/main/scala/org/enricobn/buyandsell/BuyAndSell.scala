@@ -7,13 +7,13 @@ import org.enricobn.shell.VirtualCommand
 import org.enricobn.shell.impl.VirtualShell
 import org.enricobn.vfs.{Authentication, IOError}
 
-import scala.scalajs.js.annotation.{JSExport, JSExportAll}
+import scala.scalajs.js.annotation.{JSExportAll, JSExportTopLevel}
 
 object BuyAndSell {
   val serializers : Seq[Serializer] = List(GameStatisticsSerializer, CitySerializer, MarketSerializer, WarehouseSerializer)
 }
 
-@JSExport(name = "BuyAndSell")
+@JSExportTopLevel(name = "BuyAndSell")
 @JSExportAll
 class BuyAndSell(mainCanvasID: String, messagesCanvasID: String, newGameID: String, loadGameID: String, saveGameID: String)
 extends ConsoleGame(mainCanvasID, messagesCanvasID, newGameID, loadGameID, saveGameID) {
