@@ -1,5 +1,9 @@
 package org.enricobn.buyandsell.content
 
+import org.enricobn.consolegame.UpickleUtils
+import org.enricobn.consolegame.content.SimpleSerializer
+import org.enricobn.vfs.IOError
+
 import scala.collection.mutable
 
 /**
@@ -52,9 +56,7 @@ case class CityMap(width: Int, height: Int, buildings: Map[Position, Building] =
   }
 
   private def addRow(sb: StringBuilder): Unit = {
-    for (x <- 0 until width) {
-      sb.append("+-")
-    }
+    sb.append("+-" * width)
     sb.append("+\n")
   }
 }
@@ -74,4 +76,12 @@ case class PoliceStation(width: Int, height: Int) extends Building {
 
 case class Hospital(width: Int, height: Int) extends Building {
   override val id: Char = 'H'
+}
+
+object CityMapSerializer extends SimpleSerializer(classOf[CityMap]) {
+
+  override def serializeIt(content: CityMap): Either[IOError, String] = UpickleUtils.writeE(content)
+
+  override def deserialize(ser: String): Either[IOError, CityMap] = UpickleUtils.readE[CityMap](ser)
+
 }

@@ -1,8 +1,9 @@
 package org.enricobn.consolegame
 
 import org.enricobn.buyandsell.BuyAndSell
-import org.enricobn.shell.impl.{UnixLikeInMemoryFS, UnixLikeVirtualShell}
+import org.enricobn.shell.impl.{UnixLikeInMemoryFS, UnixLikeVirtualShell, VirtualShell}
 import org.enricobn.terminal.Terminal
+import org.enricobn.vfs.Authentication
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.{FlatSpec, Matchers}
 
@@ -16,7 +17,7 @@ class SerializedFSOperationsSpec extends FlatSpec with MockFactory with Matchers
         (serializer.clazz.getName, serializer)
       ).toMap
 
-  def fixture = {
+  private def fixture = {
     val term = mock[Terminal]
     val rootPassword = "root"
 
@@ -31,8 +32,8 @@ class SerializedFSOperationsSpec extends FlatSpec with MockFactory with Matchers
     val virtualShell = UnixLikeVirtualShell(fs, term, fs.root, _rootAuthentication)
 
     new {
-      val shell = virtualShell
-      val rootAuthentication = _rootAuthentication
+      val shell: VirtualShell = virtualShell
+      val rootAuthentication: Authentication = _rootAuthentication
     }
   }
 
@@ -43,7 +44,8 @@ class SerializedFSOperationsSpec extends FlatSpec with MockFactory with Matchers
     for {
       serializedGame <- UpickleUtils.readE[SerializedGame](content).right
       _ <- SerializedFSOperations.load(f.shell, serializers, serializedGame.fs)(f.rootAuthentication).right
-      gamestats <- f.shell.findFile("/home/enrico/gamestats").right
+      home <- f.shell.homeFolder.right
+      gamestats <- home.findFile("gamestats")(f.rootAuthentication).right
     } yield {
       assert(serializedGame.userName == "enrico")
       assert(gamestats.isDefined)

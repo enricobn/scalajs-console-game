@@ -50,7 +50,13 @@ class MessagesCommand() extends VirtualCommand {
       })
 
       new VirtualProcess() {
+
         override def running: Boolean = _running
+
+        override def kill(): Unit = {
+          shell.fs.notifier.removeWatch(messagesFile, messagesSubscriber)
+          super.kill()
+        }
       }
     }
 

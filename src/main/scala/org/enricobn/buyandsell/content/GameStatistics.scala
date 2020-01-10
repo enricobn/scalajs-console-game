@@ -4,8 +4,8 @@ import org.enricobn.consolegame.UpickleUtils
 import org.enricobn.consolegame.content.SimpleSerializer
 import org.enricobn.vfs.IOError
 
-case class GameStatistics(money: Int) {
-  override def toString = s"Money: $money"
+case class GameStatistics(money: Int, availableCities: Int, cities: Set[String]) {
+  override def toString = s"Money: $money\ncities:$cities"
 }
 
 object GameStatisticsSerializer extends SimpleSerializer(classOf[GameStatistics]) {

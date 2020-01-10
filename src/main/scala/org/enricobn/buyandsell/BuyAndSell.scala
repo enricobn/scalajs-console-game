@@ -1,6 +1,6 @@
 package org.enricobn.buyandsell
 
-import org.enricobn.buyandsell.commands.SellCommand
+import org.enricobn.buyandsell.commands.{CreateCityCommand, MainLoopCommand, SellCommand}
 import org.enricobn.buyandsell.content._
 import org.enricobn.consolegame.{ConsoleGame, Serializer}
 import org.enricobn.shell.VirtualCommand
@@ -10,7 +10,8 @@ import org.enricobn.vfs.{Authentication, IOError}
 import scala.scalajs.js.annotation.{JSExportAll, JSExportTopLevel}
 
 object BuyAndSell {
-  val serializers : Seq[Serializer] = List(GameStatisticsSerializer, CitySerializer, MarketSerializer, WarehouseSerializer)
+  val serializers : Seq[Serializer] = List(GameStatisticsSerializer, CitySerializer, MarketSerializer,
+    WarehouseSerializer, CityMapSerializer)
 }
 
 @JSExportTopLevel(name = "BuyAndSell")
@@ -19,29 +20,26 @@ class BuyAndSell(mainCanvasID: String, messagesCanvasID: String, newGameID: Stri
 extends ConsoleGame(mainCanvasID, messagesCanvasID, newGameID, loadGameID, saveGameID) {
 
   override def onNewGame(shell: VirtualShell): Option[IOError] = {
+    val gameStatistics = GameStatistics(money = 10000, availableCities = 2, cities = Set.empty)
+
+    val market = Market(Map("gold" -> 1000, "silver" -> 500, "bronze" -> 100))
+
+    import org.enricobn.vfs.utils.Utils.RightBiasedEither
     implicit val authentication: Authentication = shell.authentication
 
-    val gameStatistics = GameStatistics(10000)
-    val city = City("Pisa", Statistics(100, 0))
-    val market = Market(Map("gold" -> 1000, "silver" -> 500, "bronze" -> 100))
-    val warehouse = Warehouse(Map("gold" -> 2, "silver" -> 10, "bronze" -> 20))
-
     val job = for {
-      home <- shell.homeFolder.right
-      _ <- home.createFile("gamestats", gameStatistics).right
-      _ <- home.createFile("market", market).right
-      cityFolder <- home.mkdir("Pisa").right
-      _ <- cityFolder.createFile("city", city).right
-      result <- cityFolder.createFile("warehouse", warehouse).right
-    } yield result
+      home <- shell.homeFolder
+      _ <- home.createFile("gamestats", gameStatistics)
+      _ <- home.createFile("market", market)
+    } yield ()
 
     job.left.toOption
-
   }
 
   override def commands: Either[IOError, Seq[VirtualCommand]] =
-    Right(Seq(new SellCommand()))
+    Right(Seq(new SellCommand(), new MainLoopCommand, new CreateCityCommand))
 
   override def getSerializers: Seq[Serializer] = BuyAndSell.serializers
 
+  override def getBackgroundCommand: Option[(String, List[String])] = Some((MainLoopCommand.name, List.empty))
 }

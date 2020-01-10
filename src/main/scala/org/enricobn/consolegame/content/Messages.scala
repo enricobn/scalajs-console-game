@@ -9,7 +9,6 @@ import org.enricobn.vfs.{Authentication, IOError, VirtualFile}
   * Created by enrico on 12/25/16.
   */
 object Messages {
-  private val messagesPath = "/var/log/messages.log"
 
   def getMessages(shell: VirtualShell) : Either[IOError, Messages] = {
     implicit val authentication: Authentication = shell.authentication
@@ -23,14 +22,14 @@ object Messages {
   def getMessagesFile(shell: VirtualShell) : Either[IOError, VirtualFile] = {
     implicit val authentication: Authentication = shell.authentication
 
-    shell.toFile(messagesPath)
+    shell.fs.root.resolveFileOrError(List("var", "log", "messages.log"))
   }
 
   def addMessage(shell: VirtualShell, message: String) : Option[IOError] = {
     implicit val authentication: Authentication = shell.authentication
 
     val runAddMessage = for {
-      messagesFile <- shell.toFile(messagesPath).right
+      messagesFile <- shell.fs.root.resolveFileOrError(List("var", "log", "messages.log")).right
       messages <- messagesFile.contentAs(classOf[Messages]).right
       newMessages <- Right(messages.add(message)).right
       result <- messagesFile.setContent(newMessages).toLeft(()).right

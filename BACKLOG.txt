@@ -3,7 +3,12 @@ DOING
 
 NEXT
 -----
+- is
+- I want that some commands cannot be run by the user or better cannot be seen by the user, for example MainLoopCommand and MessagesCommand,
+  so in the list of commands I need to specify the permissions
 - can I move SerializedFS and SerializedFSOperations in scalajs-vfs?
 - make static fun to get Market from home
 - serializers: check for duplicate name
 - make ConsoleGame.createUserCommands returns a seq of tuple (commandName, command) (or an Either of)
+  first of all there is not a createUserCommands function in ConsoleGame then why? I cannot remember it,
+  the command has a name so?

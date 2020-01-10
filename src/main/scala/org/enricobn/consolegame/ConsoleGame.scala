@@ -41,7 +41,7 @@ object ConsoleGame {
       _ <- messagesFile.chown(userName).toLeft(()).right
     } yield ()
 
-  private val globalSerializers : Seq[Serializer] = List(MessagesSerializer, StringListSerializer, StringMapSerializer)
+  val globalSerializers : Seq[Serializer] = List(MessagesSerializer, StringListSerializer, StringMapSerializer)
 
   private def newMainShell(rootPassword: String, mainTerminal: Terminal) : Either[IOError, VirtualShell] =
     for {
@@ -56,6 +56,11 @@ object ConsoleGame {
 
   private def executeLater(runnable: () => Unit): Unit = {
     dom.window.setTimeout(runnable, 100)
+  }
+
+  private def showError(message: String, error: IOError): Unit = {
+    println(error.message)
+    dom.window.alert(s"$message See javascript console for details.")
   }
 }
 
@@ -89,7 +94,7 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, newGa
   private val saveGameAnchor = dom.document.getElementById(saveGameID).asInstanceOf[Anchor]
 
   newGameButton.onclick = onNewGame _
-  loadGame.addEventListener("change", readGame(loadGame) _, false)
+  loadGame.addEventListener("change", readGame(loadGame) _, useCapture = false)
   saveGameAnchor.onclick = onSaveGame(saveGameAnchor) _
 
   def onNewGame(shell: VirtualShell): Option[IOError]
@@ -97,6 +102,12 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, newGa
   def commands : Either[IOError, Seq[VirtualCommand]]
 
   def getSerializers: Seq[Serializer]
+
+  /**
+    * an optional command to run in background when starting the shell
+    * @return an option pair of command name and arguments
+    */
+  def getBackgroundCommand: Option[(String, List[String])]
 
   private def onNewGame(event: MouseEvent) {
     mainCanvas.contentEditable = "true"
@@ -109,12 +120,12 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, newGa
 
     newMainShell(rootPassword, mainTerminal) match {
       case Right(newShell) =>
-        // If there is already a shell I use it since it is registered for input on then terminal, and I will get
-        // the characters echoed twice, and it's not possible (for now) to deregister the input from outside the shell.
-        val shellForReadLine = if (shell != null) shell else newShell
+        if (shell != null) {
+          shell.stop(rootAuthentication)
+        }
         // executeLater since newGame adds an input handler to the terminal, but since it runs inside another input handler
         // (created by the readLine) the one added goes after that and the enter key is processed!
-        shellForReadLine.readLine { s => executeLater { () => newGame(s, newShell) } }
+        newShell.readLine { s => executeLater { () => newGame(s, newShell) } }
       case Left(error) => dom.window.alert(s"Error initializing: ${error.message}")
     }
 
@@ -136,7 +147,6 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, newGa
       newMessagesShell = UnixLikeVirtualShell(newFs, messagesTerminal, newFs.root, rootAuthentication)
       _ <- newMessagesShell.login(newUserName, userPassword)
       _ <- newShell.login(newUserName, userPassword)
-      _ <- onNewGame(newShell).toLeft(())
     } yield {
       (userHome, newMessagesShell)
     }
@@ -144,10 +154,7 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, newGa
     runInit match {
       case Left(error) => dom.window.alert(s"Error initializing: ${error.message}")
       case Right((userHome, newMessageShell)) =>
-        if (shell != null) {
-          shell.stop(rootAuthentication)
-        }
-
+        // TODO I don't like that main shell is stopped elsewhere
         if (messagesShell != null) {
           messagesShell.stop(rootAuthentication)
         }
@@ -162,11 +169,17 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, newGa
         vum = fs.vum
         shell = newShell
         shell.currentFolder = userHome
-        shell.start()
-
 
         messagesShell = newMessageShell
-        messagesShell.startWithCommand(MessagesCommand.NAME)
+        messagesShell.startWithCommand(background = false, MessagesCommand.NAME)
+
+        executeLater(() => {
+          onNewGame(shell).foreach(showError("Error initializing game.", _))
+          getBackgroundCommand match {
+            case Some(x) => shell.startWithCommand(true, x._1, x._2:_*)
+            case None => shell.start()
+          }
+        })
     }
   }
 
@@ -214,14 +227,11 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, newGa
   }
 
   private def fileReaderOnLoad(f: File, r: FileReader)(e: UIEvent) {
-
     if (messagesShell != null) {
       messagesShell.stop(rootAuthentication)
-      loadGame(f, r.result.toString)
-    } else {
-      loadGame(f, r.result.toString)
     }
 
+    loadGame(f, r.result.toString)
   }
 
   private def loadGame(f: File, resultContent: String): Boolean = {
@@ -246,8 +256,7 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, newGa
 
     run match {
       case Left(error) =>
-        println(error.message)
-        dom.window.alert("Error loading game. See javascript console for details.")
+        showError("Error loading game", error)
         false
       case Right((showPrompt, newUserName)) =>
         try {
@@ -271,7 +280,7 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, newGa
           // TODO Error
           messagesShell.login(newUserName, userPassword)
 
-          messagesShell.startWithCommand(MessagesCommand.NAME)
+          messagesShell.startWithCommand(background = false, MessagesCommand.NAME)
 
           if (shell != null) {
             shell.stop(rootAuthentication)
@@ -287,7 +296,10 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, newGa
 
           clear(mainTerminal)
 
-          shell.start()
+          getBackgroundCommand match {
+            case Some(x) => shell.startWithCommand(true, x._1, x._2:_*)
+            case None => shell.start()
+          }
         } catch {
           case e: Exception =>
             e.printStackTrace()
@@ -349,10 +361,6 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, newGa
       case Left(_) => List()
       case Right(folders) => folders
     }
-  }
-
-  private def getFile(path: String): Either[IOError, VirtualFile] = {
-    shell.toFile(path)
   }
 
 }
