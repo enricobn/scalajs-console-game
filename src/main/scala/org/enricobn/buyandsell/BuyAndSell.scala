@@ -2,8 +2,7 @@ package org.enricobn.buyandsell
 
 import org.enricobn.buyandsell.commands.{CreateCityCommand, MainLoopCommand, SellCommand}
 import org.enricobn.buyandsell.content._
-import org.enricobn.consolegame.{ConsoleGame, Serializer}
-import org.enricobn.shell.VirtualCommand
+import org.enricobn.consolegame.{ConsoleGame, GameCommand, Serializer}
 import org.enricobn.shell.impl.VirtualShell
 import org.enricobn.vfs.{Authentication, IOError}
 
@@ -36,8 +35,9 @@ extends ConsoleGame(mainCanvasID, messagesCanvasID, newGameID, loadGameID, saveG
     job.left.toOption
   }
 
-  override def commands: Either[IOError, Seq[VirtualCommand]] =
-    Right(Seq(new SellCommand(), new MainLoopCommand, new CreateCityCommand))
+  override def commands: Either[IOError, Seq[GameCommand]] =
+    Right(Seq(GameCommand(new SellCommand(), visible = true), GameCommand(new MainLoopCommand, visible = false),
+      GameCommand(new CreateCityCommand, visible = true)))
 
   override def getSerializers: Seq[Serializer] = BuyAndSell.serializers
 

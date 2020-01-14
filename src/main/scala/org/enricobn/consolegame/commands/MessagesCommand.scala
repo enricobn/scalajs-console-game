@@ -1,6 +1,7 @@
 package org.enricobn.consolegame.commands
 
 import org.enricobn.consolegame.content.Messages
+import org.enricobn.shell.ShellInput.ShellInputDescriptor
 import org.enricobn.shell._
 import org.enricobn.shell.impl._
 import org.enricobn.vfs._
@@ -41,20 +42,21 @@ class MessagesCommand() extends VirtualCommand {
     } yield {
       shell.fs.notifier.addWatch(messagesFile, messagesSubscriber)
 
-      shellInput.subscribe(in => {
-        // Ctrl-C
-        if (in == 3.toChar.toString) {
-          shell.fs.notifier.removeWatch(messagesFile, messagesSubscriber)
-          _running = false
-        }
-      })
-
       new VirtualProcess() {
+
+        val ctrCDescriptor: ShellInputDescriptor = shellInput.subscribe(in => {
+          // Ctrl-C
+          if (in == 3.toChar.toString) {
+            kill()
+          }
+        })
 
         override def running: Boolean = _running
 
         override def kill(): Unit = {
+          shellInput.close(ctrCDescriptor)
           shell.fs.notifier.removeWatch(messagesFile, messagesSubscriber)
+          _running = false
           super.kill()
         }
       }

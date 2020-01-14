@@ -4,10 +4,11 @@ import java.util.UUID
 
 import org.enricobn.consolegame.commands.MessagesCommand
 import org.enricobn.consolegame.content.{Messages, MessagesSerializer, SimpleSerializer}
+import org.enricobn.shell.VirtualCommandOperations
 import org.enricobn.shell.impl._
-import org.enricobn.shell.{VirtualCommand, VirtualCommandOperations}
 import org.enricobn.terminal._
 import org.enricobn.vfs._
+import org.enricobn.vfs.utils.Utils.RightBiasedEither
 import org.scalajs.dom
 import org.scalajs.dom.FileReader
 import org.scalajs.dom.html.{Anchor, Button, Canvas, Input}
@@ -27,26 +28,23 @@ object ConsoleGame {
       case _ => Some(IOError("No parent"))
     }
 
-  private def initFS(fs: UnixLikeInMemoryFS, userName: String, allCommands : Either[IOError, Seq[VirtualCommand]])
+  private def initFS(fs: UnixLikeInMemoryFS, userName: String, allCommands : Either[IOError, Seq[GameCommand]])
             (implicit authentication: Authentication) : Either[IOError,Unit] =
     for {
-      _ <- VirtualCommandOperations.createCommandFiles(fs.bin, new LsCommand, new CdCommand, new CatCommand).right
-      userCommands <- allCommands.right
-      _ <- VirtualCommandOperations.createCommandFiles(fs.usrBin, userCommands :_*).right
-      messagesLog <- fs.varLog.findFile("messages.log").right
-      messagesFile <- (if (messagesLog.isDefined) { Right(messagesLog.get) } else { fs.varLog.createFile("messages.log", Messages(Seq.empty)) }).right
-      // TODO I don't like that user has the ability to delete the file, remove logs etc...
-      // But it's not easy to avoid that and grant access to add messages, perhaps I need some
-      // system call handling, but I think it's too complicated for this project ...
-      _ <- messagesFile.chown(userName).toLeft(()).right
+      _ <- VirtualCommandOperations.createCommandFiles(fs.bin, new LsCommand, new CdCommand, new CatCommand)
+      userCommands <- allCommands
+      _ <- VirtualCommandOperations.createCommandFiles(fs.usrBin, userCommands.map(_.virtualCommand) :_*)
+      messagesLog <- fs.varLog.findFile("messages.log")
+      messagesFile <- if (messagesLog.isDefined) { Right(messagesLog.get) } else { fs.varLog.createFile("messages.log", Messages(Seq.empty)) }
+      _ <- messagesFile.chown(userName).toLeft(())
     } yield ()
 
   val globalSerializers : Seq[Serializer] = List(MessagesSerializer, StringListSerializer, StringMapSerializer)
 
   private def newMainShell(rootPassword: String, mainTerminal: Terminal) : Either[IOError, VirtualShell] =
     for {
-      fs <- UnixLikeInMemoryFS(rootPassword).right
-      rootAuthentication <- fs.vum.logRoot(rootPassword).right
+      fs <- UnixLikeInMemoryFS(rootPassword)
+      rootAuthentication <- fs.vum.logRoot(rootPassword)
     } yield UnixLikeVirtualShell(fs, mainTerminal, fs.root, rootAuthentication)
 
   private def clear(terminal: Terminal): Unit = {
@@ -99,7 +97,11 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, newGa
 
   def onNewGame(shell: VirtualShell): Option[IOError]
 
-  def commands : Either[IOError, Seq[VirtualCommand]]
+  /**
+    *
+    * @return Either an error or a sequence of pairs. The boolean indicates if the command should be run by the user
+    */
+  def commands : Either[IOError, Seq[GameCommand]]
 
   def getSerializers: Seq[Serializer]
 
@@ -134,8 +136,6 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, newGa
   private def newGame(newUserName: String, newShell: VirtualShell) {
     implicit val authentication: Authentication = newShell.authentication
     rootAuthentication = authentication
-
-    import org.enricobn.vfs.utils.Utils.RightBiasedEither
 
     // TODO error
     val newFs = newShell.fs.asInstanceOf[UnixLikeInMemoryFS]
@@ -173,19 +173,37 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, newGa
         messagesShell = newMessageShell
         messagesShell.startWithCommand(background = false, MessagesCommand.NAME)
 
+
         executeLater(() => {
-          onNewGame(shell).foreach(showError("Error initializing game.", _))
-          getBackgroundCommand match {
-            case Some(x) => shell.startWithCommand(true, x._1, x._2:_*)
-            case None => shell.start()
+          onNewGame(shell).fold {
+            getBackgroundCommand match {
+              case Some(x) => shell.startWithCommand(true, x._1, x._2: _*)
+              case None => shell.start()
+            }
+            changePermissionOfPrivateCommands.left.foreach(showError("Error changing permissions of start commands.", _))
+          } {
+            showError("Error initializing game.", _)
           }
         })
     }
   }
 
-  private def onSaveGame(anchor: Anchor)(evt: MouseEvent): Unit = {
-    import org.enricobn.vfs.utils.Utils.RightBiasedEither
+  private def changePermissionOfPrivateCommands(implicit authentication: Authentication) = {
+    val privatePermission = VirtualPermissionsImpl(VirtualPermission.NONE, VirtualPermission.NONE, VirtualPermission.NONE)
 
+    for {
+      allCommands <- allCommands
+      privateCommands = allCommands.filter(!_.visible).map(_.virtualCommand)
+      _ <- Right(for (command <- privateCommands) yield {
+        for {
+          file <- fs.usrBin.resolveFileOrError(command.name)
+          _ <- file.setPermissions(privatePermission).toLeft(())
+        } yield ()
+      })
+    } yield ()
+  }
+
+  private def onSaveGame(anchor: Anchor)(evt: MouseEvent): Unit = {
     val job =
       for {
         serializedFS <- SerializedFSOperations.build(allFiles, getAllFolders(fs.root), getSerializersMap)(rootAuthentication)
@@ -245,11 +263,11 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, newGa
     implicit val authentication : Authentication = newRootAuthentication
 
     val run = for {
-      serializedGame <- UpickleUtils.readE[SerializedGame](resultContent).right
-      _ <- newFs.vum.addUser(serializedGame.userName, userPassword).toLeft(()).right
-      _ <- SerializedFSOperations.load(newShell, getSerializersMap, serializedGame.fs).right
-      _ <- ConsoleGame.initFS(newFs, serializedGame.userName, allCommands).right
-      _ <- newShell.login(serializedGame.userName, userPassword).right
+      serializedGame <- UpickleUtils.readE[SerializedGame](resultContent)
+      _ <- newFs.vum.addUser(serializedGame.userName, userPassword).toLeft(())
+      _ <- SerializedFSOperations.load(newShell, getSerializersMap, serializedGame.fs)
+      _ <- ConsoleGame.initFS(newFs, serializedGame.userName, allCommands)
+      _ <- newShell.login(serializedGame.userName, userPassword)
     } yield {
       (false, serializedGame.userName)
     }
@@ -313,14 +331,14 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, newGa
     }
   }
 
-  private def allCommands : Either[IOError, Seq[VirtualCommand]] = {
+  private def allCommands : Either[IOError, Seq[GameCommand]] = {
     for {
-      defCommands <- Right(defaultCommands).right
-      commands <- commands.right
+      defCommands <- Right(defaultCommands)
+      commands <- commands
     } yield defCommands ++ commands
   }
 
-  private def defaultCommands : Seq[VirtualCommand] = Seq(new MessagesCommand())
+  private def defaultCommands : Seq[GameCommand] = Seq(GameCommand(new MessagesCommand(), visible = false))
 
   // TODO error for logging (even for getAllFiles?)
   private def allFiles: Set[VirtualFile] = {
@@ -338,8 +356,8 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, newGa
     implicit val authentication : Authentication = rootAuthentication
 
     (for {
-      files <- folder.files.right
-      folders <- folder.folders.right
+      files <- folder.files
+      folders <- folder.folders
     } yield {
       files ++ folders.flatMap(getAllFiles)
     }) match {
@@ -354,7 +372,7 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, newGa
     implicit val authentication : Authentication = rootAuthentication
 
     (for {
-      folders <- folder.folders.right
+      folders <- folder.folders
     } yield {
       folders.toList ++ folders.flatMap(getAllFolders)
     }) match {
