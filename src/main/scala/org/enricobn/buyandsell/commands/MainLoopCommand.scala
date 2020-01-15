@@ -5,14 +5,10 @@ import org.enricobn.shell.impl.VirtualShell
 import org.enricobn.shell.{ShellInput, ShellOutput, VirtualCommand, VirtualProcess}
 import org.enricobn.vfs.IOError
 
-object MainLoopCommand {
-  val name = "mainLoop"
-}
-
 // TODO it's an example
-class MainLoopCommand extends VirtualCommand {
+object MainLoopCommand extends VirtualCommand {
 
-  override def name: String = MainLoopCommand.name
+  override def name: String = "mainLoop"
 
   override def run(shell: VirtualShell, shellInput: ShellInput, shellOutput: ShellOutput, args: String*): Either[IOError, VirtualProcess] =
     Right(new VirtualProcess() {

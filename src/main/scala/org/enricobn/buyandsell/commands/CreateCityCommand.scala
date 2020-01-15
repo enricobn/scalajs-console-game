@@ -1,20 +1,11 @@
 package org.enricobn.buyandsell.commands
 
-import org.enricobn.buyandsell.commands.CreateCityCommand.{NAME, name}
 import org.enricobn.buyandsell.content.{City, Statistics, Warehouse}
 import org.enricobn.shell.impl.{StringArgument, VirtualCommandAbstract, VirtualShell}
 import org.enricobn.shell.{ShellInput, ShellOutput, VirtualProcess}
 import org.enricobn.vfs.{Authentication, IOError}
 
-object CreateCityCommand {
-
-  def name = "createcity"
-
-  private val NAME = StringArgument("name", required = true)
-
-}
-
-class CreateCityCommand extends VirtualCommandAbstract(name, NAME) {
+object CreateCityCommand extends VirtualCommandAbstract("createcity", StringArgument("name", required = true)) {
 
   override def runParsed(shell: VirtualShell, shellInput: ShellInput, shellOutput: ShellOutput, args: Seq[Any])
                         (implicit authentication: Authentication)

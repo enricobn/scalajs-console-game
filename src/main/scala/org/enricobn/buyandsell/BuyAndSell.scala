@@ -36,8 +36,8 @@ extends ConsoleGame(mainCanvasID, messagesCanvasID, newGameID, loadGameID, saveG
   }
 
   override def commands: Either[IOError, Seq[GameCommand]] =
-    Right(Seq(GameCommand(new SellCommand(), visible = true), GameCommand(new MainLoopCommand, visible = false),
-      GameCommand(new CreateCityCommand, visible = true)))
+    Right(Seq(GameCommand(SellCommand, visible = true), GameCommand(MainLoopCommand, visible = false),
+      GameCommand(CreateCityCommand, visible = true)))
 
   override def getSerializers: Seq[Serializer] = BuyAndSell.serializers
 

@@ -31,7 +31,7 @@ object ConsoleGame {
   private def initFS(fs: UnixLikeInMemoryFS, userName: String, allCommands : Either[IOError, Seq[GameCommand]])
             (implicit authentication: Authentication) : Either[IOError,Unit] =
     for {
-      _ <- VirtualCommandOperations.createCommandFiles(fs.bin, new LsCommand, new CdCommand, new CatCommand)
+      _ <- VirtualCommandOperations.createCommandFiles(fs.bin, LsCommand, CdCommand, CatCommand)
       userCommands <- allCommands
       _ <- VirtualCommandOperations.createCommandFiles(fs.usrBin, userCommands.map(_.virtualCommand) :_*)
       messagesLog <- fs.varLog.findFile("messages.log")
