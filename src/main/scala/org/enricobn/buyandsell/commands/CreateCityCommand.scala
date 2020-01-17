@@ -15,7 +15,10 @@ object CreateCityCommand extends VirtualCommandAbstract("createcity", StringArgu
     val cityName = args.head.asInstanceOf[String]
 
     val city = City(cityName, Statistics(population = 0, employed = 0))
-    val warehouse = Warehouse(Map("gold" -> 2, "silver" -> 10, "bronze" -> 20))
+    val warehouse = Warehouse(Map())
+      .add(shell, "gold",  2)
+      .add(shell, "silver",  10)
+      .add(shell, "bronze",  20)
 
     for {
       home <- shell.homeFolder

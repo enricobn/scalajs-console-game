@@ -21,15 +21,12 @@ extends ConsoleGame(mainCanvasID, messagesCanvasID, newGameID, loadGameID, saveG
   override def onNewGame(shell: VirtualShell): Option[IOError] = {
     val gameStatistics = GameStatistics(money = 10000, availableCities = 2, cities = Set.empty)
 
-    val market = Market(Map("gold" -> 1000, "silver" -> 500, "bronze" -> 100))
-
     import org.enricobn.vfs.utils.Utils.RightBiasedEither
     implicit val authentication: Authentication = shell.authentication
 
     val job = for {
       home <- shell.homeFolder
       _ <- home.createFile("gamestats", gameStatistics)
-      _ <- home.createFile("market", market)
     } yield ()
 
     job.left.toOption

@@ -47,7 +47,7 @@ object SellCommand extends VirtualCommandAbstract("sell", FILE, GOOD, QTY) {
 
       for {
         warehouse <- file.contentAs(classOf[Warehouse]).right
-        newWarehouse <- warehouse.sell(good, qty).right
+        newWarehouse <- Right(warehouse.add(shell, good, qty)).right
         _ <- file.setContent(newWarehouse).toLeft(()).right
         _ <- Messages.addMessage(shell, "sell " + qty + " of " + good).toLeft(()).right
       } yield new VirtualProcess()

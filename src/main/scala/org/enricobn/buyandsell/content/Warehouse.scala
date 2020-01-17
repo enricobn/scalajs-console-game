@@ -26,20 +26,21 @@ object Warehouse {
   */
 case class Warehouse(goods: Map[String, Int]) {
 
-  def add(good: String, qty: Int): Warehouse = {
+  def add(shell: VirtualShell, good: String, qty: Int): Warehouse = {
+    Market.goodChanged(shell, good, qty).left.foreach(println(_))
     goods.get(good) match {
       case Some(v) => Warehouse(goods + (good -> (qty + v)))
       case _ => Warehouse(goods + (good -> qty))
     }
   }
 
-  def sell(good: String, qty: Int): Either[IOError, Warehouse] = {
+  def sell(shell: VirtualShell, good: String, qty: Int): Either[IOError, Warehouse] = {
     goods.get(good) match {
       case Some(v) if v > qty =>
         Right(Warehouse(goods + (good -> (v - qty))))
       case Some(v) if v == qty =>
         Right(Warehouse(goods - good))
-      case Some(v) =>
+      case Some(_) =>
         "Invalid qty.".ioErrorE
       case _ =>
         "Cannot find good.".ioErrorE
