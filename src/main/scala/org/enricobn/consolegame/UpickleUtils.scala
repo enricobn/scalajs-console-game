@@ -8,7 +8,7 @@ object UpickleUtils {
 
     def writeE[T1: Writer](value: T1) : Either[IOError, String] = {
       try {
-        Right(write(value))
+        Right(write(value, 2))
       } catch {
         case e: Throwable => e.getMessage.ioErrorE
       }
