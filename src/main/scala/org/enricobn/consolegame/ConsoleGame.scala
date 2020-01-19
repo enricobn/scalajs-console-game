@@ -2,6 +2,7 @@ package org.enricobn.consolegame
 
 import java.util.UUID
 
+import org.enricobn.buyandsell.content.{GameInfo, GameInfoSerializer}
 import org.enricobn.consolegame.commands.MessagesCommand
 import org.enricobn.consolegame.content.{Messages, MessagesSerializer, SimpleSerializer}
 import org.enricobn.shell.VirtualCommandOperations
@@ -22,26 +23,31 @@ import scala.language.reflectiveCalls
 
 object ConsoleGame {
   // TODO move in VirtualFile?
-  private def delete(file: VirtualFile)(implicit authentication: Authentication) : Option[IOError] =
+  private def delete(file: VirtualFile)(implicit authentication: Authentication): Option[IOError] =
     file.parent match {
       case Some(folder) => folder.deleteFile(file.name)
       case _ => Some(IOError("No parent"))
     }
 
-  private def initFS(fs: UnixLikeInMemoryFS, userName: String, allCommands : Either[IOError, Seq[GameCommand]])
-            (implicit authentication: Authentication) : Either[IOError,Unit] =
+  private def initFS(fs: UnixLikeInMemoryFS, userName: String, allCommands: Either[IOError, Seq[GameCommand]])
+                    (implicit authentication: Authentication): Either[IOError, Unit] =
     for {
       _ <- VirtualCommandOperations.createCommandFiles(fs.bin, LsCommand, CdCommand, CatCommand)
       userCommands <- allCommands
-      _ <- VirtualCommandOperations.createCommandFiles(fs.usrBin, userCommands.map(_.virtualCommand) :_*)
+      _ <- VirtualCommandOperations.createCommandFiles(fs.usrBin, userCommands.map(_.virtualCommand): _*)
       messagesLog <- fs.varLog.findFile("messages.log")
-      messagesFile <- if (messagesLog.isDefined) { Right(messagesLog.get) } else { fs.varLog.createFile("messages.log", Messages(Seq.empty)) }
+      messagesFile <- if (messagesLog.isDefined) {
+        Right(messagesLog.get)
+      } else {
+        fs.varLog.createFile("messages.log", Messages(Seq.empty))
+      }
       _ <- messagesFile.chown(userName).toLeft(())
+      _ <- GameInfo.getOrCreate(fs, () => GameInfo(userName))
     } yield ()
 
-  val globalSerializers : Seq[Serializer] = List(MessagesSerializer, StringListSerializer, StringMapSerializer)
+  val globalSerializers: Seq[Serializer] = List(MessagesSerializer, StringListSerializer, StringMapSerializer, GameInfoSerializer)
 
-  private def newMainShell(rootPassword: String, mainTerminal: Terminal) : Either[IOError, VirtualShell] =
+  private def newMainShell(rootPassword: String, mainTerminal: Terminal): Either[IOError, VirtualShell] =
     for {
       fs <- UnixLikeInMemoryFS(rootPassword)
       rootAuthentication <- fs.vum.logRoot(rootPassword)
@@ -80,12 +86,12 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, newGa
   private val messagesTerminal = new TerminalImpl(messagesScreen, messagesInput, logger, "typewriter-key-1.wav")
   private val rootPassword = UUID.randomUUID().toString
   private val userPassword = UUID.randomUUID().toString
-  private var fs : UnixLikeInMemoryFS = _
-  private var vum : VirtualUsersManager = _
-  private var rootAuthentication: Authentication = _
+  private var fs: UnixLikeInMemoryFS = _
+  private var vum: VirtualUsersManager = _
+  protected var rootAuthentication: Authentication = _
   private var shell: VirtualShell = _
   private var messagesShell: VirtualShell = _
-  private var userName : String = _
+  private var userName: String = _
 
   private val newGameButton = dom.document.getElementById(newGameID).asInstanceOf[Button]
   private val loadGame = dom.document.getElementById(loadGameID).asInstanceOf[Input]
@@ -101,15 +107,28 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, newGa
     *
     * @return Either an error or a sequence of pairs. The boolean indicates if the command should be run by the user
     */
-  def commands : Either[IOError, Seq[GameCommand]]
+  def commands: Either[IOError, Seq[GameCommand]]
 
   def getSerializers: Seq[Serializer]
 
   /**
     * an optional command to run in background when starting the shell
+    *
     * @return an option pair of command name and arguments
     */
   def getBackgroundCommand: Option[(String, List[String])]
+
+  protected def createFakeUser(user: String): Either[IOError, VirtualShell] = {
+    val userTerminal = new FakeTerminal
+    val userShell = UnixLikeVirtualShell(shell.fs.asInstanceOf[UnixLikeInMemoryFS], userTerminal, shell.fs.root, rootAuthentication)
+    val password = UUID.randomUUID().toString
+    userTerminal.setShell(userShell)
+
+    for {
+      _ <- shell.vum.addUser(user, password)(rootAuthentication).toLeft(()).right
+      _ <- userShell.login(user, password).right
+    } yield userShell
+  }
 
   private def onNewGame(event: MouseEvent) {
     mainCanvas.contentEditable = "true"
@@ -173,7 +192,6 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, newGa
         messagesShell = newMessageShell
         messagesShell.startWithCommand(background = false, MessagesCommand.NAME)
 
-
         executeLater(() => {
           onNewGame(shell).fold {
             getBackgroundCommand match {
@@ -211,11 +229,11 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, newGa
         ser <- UpickleUtils.writeE(game)
       } yield {
         val file = new Blob(js.Array(ser), BlobPropertyBag("text/plain"))
-      anchor.href = URL.createObjectURL(file)
-      anchor.pathname = "consolegame.json"
-      messagesTerminal.add(s"Game saved.\n")
-      messagesTerminal.flush()
-    }
+        anchor.href = URL.createObjectURL(file)
+        anchor.pathname = "consolegame.json"
+        messagesTerminal.add(s"Game saved.\n")
+        messagesTerminal.flush()
+      }
 
     job match {
       case Left(error) => dom.window.alert(s"Error saving game: ${error.message}.")
@@ -234,14 +252,14 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, newGa
   private def getGlobalSerializers = ConsoleGame.globalSerializers
 
   private def readGame(input: Input)(evt: Event): Unit = {
-      //Retrieve the first (and only!) File from the FileList object
-      val f = evt.target.asInstanceOf[Input].files(0)
+    //Retrieve the first (and only!) File from the FileList object
+    val f = evt.target.asInstanceOf[Input].files(0)
 
-      if (f != null) {
-        val r = new FileReader()
-        r.onload = fileReaderOnLoad(f, r) _
-        r.readAsText(f)
-      }
+    if (f != null) {
+      val r = new FileReader()
+      r.onload = fileReaderOnLoad(f, r) _
+      r.readAsText(f)
+    }
   }
 
   private def fileReaderOnLoad(f: File, r: FileReader)(e: UIEvent) {
@@ -260,7 +278,7 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, newGa
 
     val newShell = UnixLikeVirtualShell(newFs, mainTerminal, newFs.root, newRootAuthentication)
 
-    implicit val authentication : Authentication = newRootAuthentication
+    implicit val authentication: Authentication = newRootAuthentication
 
     val run = for {
       serializedGame <- UpickleUtils.readE[SerializedGame](resultContent)
@@ -315,7 +333,7 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, newGa
           clear(mainTerminal)
 
           getBackgroundCommand match {
-            case Some(x) => shell.startWithCommand(true, x._1, x._2:_*)
+            case Some(x) => shell.startWithCommand(true, x._1, x._2: _*)
             case None => shell.start()
           }
         } catch {
@@ -331,18 +349,18 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, newGa
     }
   }
 
-  private def allCommands : Either[IOError, Seq[GameCommand]] = {
+  private def allCommands: Either[IOError, Seq[GameCommand]] = {
     for {
       defCommands <- Right(defaultCommands)
       commands <- commands
     } yield defCommands ++ commands
   }
 
-  private def defaultCommands : Seq[GameCommand] = Seq(GameCommand(new MessagesCommand(), visible = false))
+  private def defaultCommands: Seq[GameCommand] = Seq(GameCommand(new MessagesCommand(), visible = false))
 
   // TODO error for logging (even for getAllFiles?)
   private def allFiles: Set[VirtualFile] = {
-    implicit val authentication : Authentication = rootAuthentication
+    implicit val authentication: Authentication = rootAuthentication
 
     vum.logRoot(rootPassword)
     val files = getAllFiles(fs.root)
@@ -352,8 +370,8 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, newGa
 
   // TODO create scalajs-vfs VirtualFolder.getAllFiles
   // TODO error?
-  private def getAllFiles(folder: VirtualFolder) : Set[VirtualFile] = {
-    implicit val authentication : Authentication = rootAuthentication
+  private def getAllFiles(folder: VirtualFolder): Set[VirtualFile] = {
+    implicit val authentication: Authentication = rootAuthentication
 
     (for {
       files <- folder.files
@@ -368,8 +386,8 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, newGa
 
   // TODO create scalajs-vfs VirtualFolder.getAllFolders
   // TODO error?
-  private def getAllFolders(folder: VirtualFolder) : List[VirtualFolder] = {
-    implicit val authentication : Authentication = rootAuthentication
+  private def getAllFolders(folder: VirtualFolder): List[VirtualFolder] = {
+    implicit val authentication: Authentication = rootAuthentication
 
     (for {
       folders <- folder.folders

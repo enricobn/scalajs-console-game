@@ -93,7 +93,13 @@ object SerializedFSOperations {
 
   private def fileContentSerializer(fileContent: (VirtualFile, AnyRef), serializers: Map[String, Serializer]) = {
     val (file, content) = fileContent
-    ((file, content), serializers.get(content.getClass.getName))
+    val maybeSerializer = serializers.get(content.getClass.getName)
+
+    if (maybeSerializer.isEmpty) {
+      println(s"Cannot serialize ${content.getClass.getName}")
+    }
+
+    ((file, content), maybeSerializer)
   }
 
   private def mkdir(shell:VirtualShell, path: String)(implicit authentication: Authentication) : Either[IOError, VirtualFolder] = {

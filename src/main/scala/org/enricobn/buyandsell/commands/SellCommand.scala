@@ -1,6 +1,6 @@
 package org.enricobn.buyandsell.commands
 
-import org.enricobn.buyandsell.content.Warehouse
+import org.enricobn.buyandsell.content.{GameStatistics, Market, Warehouse}
 import org.enricobn.consolegame.content.Messages
 import org.enricobn.shell._
 import org.enricobn.shell.impl._
@@ -47,7 +47,10 @@ object SellCommand extends VirtualCommandAbstract("sell", FILE, GOOD, QTY) {
 
       for {
         warehouse <- file.contentAs(classOf[Warehouse]).right
-        newWarehouse <- Right(warehouse.add(shell, good, qty)).right
+        gamestatsFile <- GameStatistics.apply(shell).right
+        marketEntry <- Market.get(shell, good).right
+        _ <- gamestatsFile.mapContent(_.add(marketEntry.price * qty)).right
+        newWarehouse <- Right(warehouse.add(shell, good, -qty)).right
         _ <- file.setContent(newWarehouse).toLeft(()).right
         _ <- Messages.addMessage(shell, "sell " + qty + " of " + good).toLeft(()).right
       } yield new VirtualProcess()

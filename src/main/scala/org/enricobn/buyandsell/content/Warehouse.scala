@@ -27,7 +27,8 @@ object Warehouse {
 case class Warehouse(goods: Map[String, Int]) {
 
   def add(shell: VirtualShell, good: String, qty: Int): Warehouse = {
-    Market.goodChanged(shell, good, qty).left.foreach(println(_))
+    // TODO handle error
+    Market.goodChanged(shell, good, qty)
     goods.get(good) match {
       case Some(v) => Warehouse(goods + (good -> (qty + v)))
       case _ => Warehouse(goods + (good -> qty))

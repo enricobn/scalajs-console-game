@@ -5,7 +5,7 @@ import org.enricobn.vfs.{Authentication, IOError, VirtualFile, VirtualFolder}
 
 object VirtualFileWithContent {
 
-  def apply[T <: AnyRef](clazz: Class[T], folder: VirtualFolder, name: String, createFunction: () => T)
+  def getOrCreate[T <: AnyRef](clazz: Class[T], folder: VirtualFolder, name: String, createFunction: () => T)
                         (implicit authentication: Authentication) : Either[IOError, VirtualFileWithContent[T]] =
     for {
       fileO <- folder.findFile(name)
@@ -17,7 +17,7 @@ object VirtualFileWithContent {
 
 }
 
-class VirtualFileWithContent[T <: AnyRef](clazz: Class[T], file: VirtualFile) {
+class VirtualFileWithContent[T <: AnyRef](clazz: Class[T], val file: VirtualFile) {
 
   def mapContent(mapFunction: T => T)(implicit authentication: Authentication): Either[IOError, Unit] =
     for {
