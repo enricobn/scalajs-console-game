@@ -2,6 +2,7 @@ package org.enricobn.buyandsell
 
 import org.enricobn.buyandsell.commands.{CreateCityCommand, MainLoopCommand, SellCommand}
 import org.enricobn.buyandsell.content._
+import org.enricobn.buyandsell.content.externalserializers.PasswdSerializer
 import org.enricobn.consolegame.{ConsoleGame, GameCommand, Serializer}
 import org.enricobn.shell.impl.VirtualShell
 import org.enricobn.vfs.utils.Utils.RightBiasedEither
@@ -11,7 +12,7 @@ import scala.scalajs.js.annotation.{JSExportAll, JSExportTopLevel}
 
 object BuyAndSell {
   val serializers : Seq[Serializer] = List(GameStatisticsSerializer, GameInfoSerializer, MarketSerializer,
-    WarehouseSerializer, CityMapSerializer)
+    WarehouseSerializer, CityMapSerializer, PasswdSerializer)
 }
 
 @JSExportTopLevel(name = "BuyAndSell")

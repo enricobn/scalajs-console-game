@@ -2,10 +2,9 @@ package org.enricobn.buyandsell.content
 
 import org.enricobn.consolegame.UpickleUtils
 import org.enricobn.consolegame.content.SimpleSerializer
-import org.enricobn.consolegame.fs.VirtualFileWithContent
 import org.enricobn.shell.impl.VirtualShell
 import org.enricobn.vfs.utils.Utils.RightBiasedEither
-import org.enricobn.vfs.{Authentication, IOError}
+import org.enricobn.vfs.{Authentication, IOError, VirtualFileWithContent}
 
 import scala.math.BigDecimal.RoundingMode
 

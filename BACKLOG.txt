@@ -1,5 +1,8 @@
 DOING
 ------
+- use VirtualFileWithContent.getOrCreate only when needed: mandatory files should be created on new game with a
+  fixed content then use the constructor
+- trying to recreate the fs from the serialized one retaining passwd and all the folders
 
 NEXT
 -----

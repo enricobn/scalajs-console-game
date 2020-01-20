@@ -2,9 +2,8 @@ package org.enricobn.buyandsell.content
 
 import org.enricobn.consolegame.UpickleUtils
 import org.enricobn.consolegame.content.SimpleSerializer
-import org.enricobn.consolegame.fs.VirtualFileWithContent
 import org.enricobn.vfs.utils.Utils.RightBiasedEither
-import org.enricobn.vfs.{Authentication, IOError, VirtualFS}
+import org.enricobn.vfs.{Authentication, IOError, VirtualFS, VirtualFileWithContent}
 import upickle.default._
 
 object GameInfo {
