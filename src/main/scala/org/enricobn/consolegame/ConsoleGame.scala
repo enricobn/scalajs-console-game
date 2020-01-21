@@ -2,6 +2,7 @@ package org.enricobn.consolegame
 
 import java.util.UUID
 
+import org.enricobn.buyandsell.content.externalserializers.PasswdSerializer
 import org.enricobn.buyandsell.content.{GameInfo, GameInfoSerializer}
 import org.enricobn.consolegame.commands.MessagesCommand
 import org.enricobn.consolegame.content.{Messages, MessagesSerializer, SimpleSerializer}
@@ -9,6 +10,8 @@ import org.enricobn.shell.VirtualCommandOperations
 import org.enricobn.shell.impl._
 import org.enricobn.terminal._
 import org.enricobn.vfs._
+import org.enricobn.vfs.impl.{VirtualSecurityManagerImpl, VirtualUsersManagerFileImpl}
+import org.enricobn.vfs.inmemory.InMemoryFS
 import org.enricobn.vfs.utils.Utils.RightBiasedEither
 import org.scalajs.dom
 import org.scalajs.dom.FileReader
@@ -47,11 +50,15 @@ object ConsoleGame {
 
   val globalSerializers: Seq[Serializer] = List(MessagesSerializer, StringListSerializer, StringMapSerializer, GameInfoSerializer)
 
-  private def newMainShell(rootPassword: String, mainTerminal: Terminal): Either[IOError, VirtualShell] =
+  private def newMainShell(rootPassword: String, mainTerminal: Terminal): Either[IOError, VirtualShell] = {
+    val _fs = InMemoryFS(
+      {VirtualUsersManagerFileImpl(_, rootPassword).right.get},
+      {(_, vum) => new VirtualSecurityManagerImpl(vum)})
     for {
-      fs <- UnixLikeInMemoryFS(rootPassword)
+      fs <- UnixLikeInMemoryFS(_fs, rootPassword)
       rootAuthentication <- fs.vum.logRoot(rootPassword)
     } yield UnixLikeVirtualShell(fs, mainTerminal, fs.root, rootAuthentication)
+  }
 
   private def clear(terminal: Terminal): Unit = {
     terminal.add("\u001b[2J\u001b[1;1H") // clear screen an reset cursor to 1, 1
@@ -84,8 +91,8 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, newGa
   private val messagesScreen = new CanvasTextScreen(messagesCanvasID, logger)
   private val messagesInput = new CanvasInputHandler(messagesCanvasID)
   private val messagesTerminal = new TerminalImpl(messagesScreen, messagesInput, logger, "typewriter-key-1.wav")
-  private val rootPassword = UUID.randomUUID().toString
-  private val userPassword = UUID.randomUUID().toString
+  private var rootPassword = UUID.randomUUID().toString
+  private var userPassword = UUID.randomUUID().toString
   private var fs: UnixLikeInMemoryFS = _
   private var vum: VirtualUsersManager = _
   protected var rootAuthentication: Authentication = _
@@ -271,30 +278,29 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, newGa
   }
 
   private def loadGame(f: File, resultContent: String): Boolean = {
-    // TODO error handling
-    val newFs = UnixLikeInMemoryFS(rootPassword).right.get
-
-    val newRootAuthentication = newFs.vum.logRoot(rootPassword).right.get
-
-    val newShell = UnixLikeVirtualShell(newFs, mainTerminal, newFs.root, newRootAuthentication)
-
-    implicit val authentication: Authentication = newRootAuthentication
-
     val run = for {
       serializedGame <- UpickleUtils.readE[SerializedGame](resultContent)
-      _ <- newFs.vum.addUser(serializedGame.userName, userPassword).toLeft(())
-      _ <- SerializedFSOperations.load(newShell, getSerializersMap, serializedGame.fs)
-      _ <- ConsoleGame.initFS(newFs, serializedGame.userName, allCommands)
-      _ <- newShell.login(serializedGame.userName, userPassword)
+      passwd <- serializedGame.fs.files.find(_.path == "/etc/passwd").toRight(IOError("cannot find passwd file"))
+        .flatMap( content => PasswdSerializer.deserialize(content.ser))
+      inMemoryFs = InMemoryFS(fs => VirtualUsersManagerFileImpl(fs, passwd).right.get,
+        (_, vum) => new VirtualSecurityManagerImpl(vum))
+      newRootAuthentication = passwd.users.find(_.user == VirtualUsersManager.ROOT).get.auth
+      newRootPassword = passwd.users.find(_.user == VirtualUsersManager.ROOT).get.password
+      newUserPassword = passwd.users.find(_.user == serializedGame.userName).get.password
+      newFs <- UnixLikeInMemoryFS(inMemoryFs, newRootPassword)
+      newShell = UnixLikeVirtualShell(newFs, mainTerminal, newFs.root, newRootAuthentication)
+      _ <- SerializedFSOperations.load(newShell, getSerializersMap, serializedGame.fs)(newRootAuthentication)
+      _ <- ConsoleGame.initFS(newFs, serializedGame.userName, allCommands)(newRootAuthentication)
+      _ <- newShell.login(serializedGame.userName, newUserPassword)
     } yield {
-      (false, serializedGame.userName)
+      (false, serializedGame.userName, newFs, newShell, newRootAuthentication, newRootPassword, newUserPassword)
     }
 
     run match {
       case Left(error) =>
         showError("Error loading game", error)
         false
-      case Right((showPrompt, newUserName)) =>
+      case Right((showPrompt, newUserName, newFs, newShell, newRootAuthentication, newRootPassword, newUserPassword)) =>
         try {
           clear(messagesTerminal)
 
@@ -325,7 +331,9 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, newGa
           fs = newFs
           vum = newFs.vum
           rootAuthentication = newRootAuthentication
+          rootPassword = newRootPassword
           userName = newUserName
+          userPassword = newUserPassword
 
           shell = newShell
           shell.currentFolder = homeFolder

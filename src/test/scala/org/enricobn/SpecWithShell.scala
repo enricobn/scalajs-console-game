@@ -3,6 +3,7 @@ package org.enricobn
 import org.enricobn.shell.impl.{UnixLikeInMemoryFS, UnixLikeVirtualShell, VirtualShell}
 import org.enricobn.terminal.Terminal
 import org.enricobn.vfs.Authentication
+import org.enricobn.vfs.inmemory.InMemoryFS
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.{FlatSpec, Matchers}
 
@@ -12,7 +13,7 @@ abstract class SpecWithShell extends FlatSpec with MockFactory with Matchers {
     val term = mock[Terminal]
     val rootPassword = "root"
 
-    val fs = UnixLikeInMemoryFS(rootPassword).right.get
+    val fs = UnixLikeInMemoryFS(InMemoryFS(rootPassword).right.get, rootPassword).right.get
 
     val vum = fs.vum
 
