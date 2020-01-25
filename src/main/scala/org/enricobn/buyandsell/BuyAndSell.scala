@@ -27,7 +27,6 @@ extends ConsoleGame(mainCanvasID, messagesCanvasID, newGameID, loadGameID, saveG
 
     val job = for {
       marketFileWithContent <- Market.get(shell)
-      _ <- marketFileWithContent.file.chmod(666)(rootAuthentication).toLeft(())
       _ <- marketFileWithContent.mapContent { market =>
         market
           .addDefaultPrice("gold", 1000)
@@ -55,4 +54,5 @@ extends ConsoleGame(mainCanvasID, messagesCanvasID, newGameID, loadGameID, saveG
   override def getSerializers: Seq[Serializer] = BuyAndSell.serializers
 
   override def getBackgroundCommand: Option[(String, List[String])] = Some((MainLoopCommand.name, List.empty))
+
 }

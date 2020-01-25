@@ -18,6 +18,7 @@ object SerializedFSOperations {
         for {
           folder <- mkdir(shell, serializedFolder.path).right
           _ <- folder.chown(serializedFolder.owner).toLeft(()).right
+          _ <- folder.chgrp(serializedFolder.group).toLeft(()).right
           result <- folder.chmod(serializedFolder.permissions).toLeft(()).right
         } yield {
           result
@@ -41,6 +42,7 @@ object SerializedFSOperations {
                       parentFolder.touch(path.name).right
                     }
             _ <- file.chown(serializedFile.owner).toLeft(()).right
+            _ <- file.chgrp(serializedFile.group).toLeft(()).right
             _ <- file.chmod(serializedFile.permissions).toLeft(()).right
           } yield fileSerializerDeSerialized(serializedFile, serializer)
         }
@@ -52,7 +54,7 @@ object SerializedFSOperations {
 
         result.right
       }
-      contentFiles <- Utils.liftTuple(serializedAndSerializerAndContent.map {case ((serializedFile, serializer), content) =>
+      contentFiles <- Utils.liftTuple(serializedAndSerializerAndContent.map {case ((serializedFile, _), content) =>
         (content, shell.toFile(serializedFile.path))
       }).right
       result <- Utils.mapFirstSome[(AnyRef, VirtualFile), IOError](contentFiles,
@@ -80,9 +82,9 @@ object SerializedFSOperations {
         fileContentSerializers.map { case ((file, content), serializer) => ((file, serializer), serializer.serialize(content))
         }).right
       files <- Right(serializedContents.map { case ((file, serializer), ser) =>
-        SerializedFile(file.path, file.owner, file.permissions.octal, serializer.name, ser)
+        SerializedFile(file.path, file.owner, file.group, file.permissions.octal, serializer.name, ser)
       }).right
-      folders <- Right(folders.map(folder => SerializedFolder(folder.path, folder.owner, folder.permissions.octal))).right
+      folders <- Right(folders.map(folder => SerializedFolder(folder.path, folder.owner, folder.group, folder.permissions.octal))).right
     } yield {
       SerializedFS(folders, files)
     }

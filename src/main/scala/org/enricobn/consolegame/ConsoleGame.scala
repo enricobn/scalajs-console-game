@@ -25,6 +25,7 @@ import scala.scalajs.js.annotation.JSExportAll
 import scala.language.reflectiveCalls
 
 object ConsoleGame {
+  private val group = "game"
   // TODO move in VirtualFile?
   private def delete(file: VirtualFile)(implicit authentication: Authentication): Option[IOError] =
     file.parent match {
@@ -60,7 +61,7 @@ object ConsoleGame {
     } yield UnixLikeVirtualShell(fs, mainTerminal, fs.root, rootAuthentication)
   }
 
-  private def clear(terminal: Terminal): Unit = {
+  private def clearScreen(terminal: Terminal): Unit = {
     terminal.add("\u001b[2J\u001b[1;1H") // clear screen an reset cursor to 1, 1
     terminal.flush()
   }
@@ -95,7 +96,7 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, newGa
   private var userPassword = UUID.randomUUID().toString
   private var fs: UnixLikeInMemoryFS = _
   private var vum: VirtualUsersManager = _
-  protected var rootAuthentication: Authentication = _
+  private var rootAuthentication: Authentication = _
   private var shell: VirtualShell = _
   private var messagesShell: VirtualShell = _
   private var userName: String = _
@@ -132,7 +133,7 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, newGa
     userTerminal.setShell(userShell)
 
     for {
-      _ <- shell.vum.addUser(user, password)(rootAuthentication).toLeft(()).right
+      _ <- shell.vum.addUser(user, password, group)(rootAuthentication).toLeft(()).right
       _ <- userShell.login(user, password).right
     } yield userShell
   }
@@ -141,7 +142,7 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, newGa
     mainCanvas.contentEditable = "true"
     mainCanvas.focus()
 
-    clear(mainTerminal)
+    clearScreen(mainTerminal)
 
     mainTerminal.add("User name: ")
     mainTerminal.flush()
@@ -167,7 +168,7 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, newGa
     val newFs = newShell.fs.asInstanceOf[UnixLikeInMemoryFS]
 
     val runInit = for {
-      _ <- newFs.vum.addUser(newUserName, userPassword).toLeft(())
+      _ <- newFs.vum.addUser(newUserName, userPassword, group).toLeft(())
       _ <- ConsoleGame.initFS(newFs, newUserName, allCommands)
       userHome <- newShell.toFolder("/home/" + newUserName)
       newMessagesShell = UnixLikeVirtualShell(newFs, messagesTerminal, newFs.root, rootAuthentication)
@@ -233,7 +234,7 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, newGa
       for {
         serializedFS <- SerializedFSOperations.build(allFiles, getAllFolders(fs.root), getSerializersMap)(rootAuthentication)
         game = SerializedGame(userName, serializedFS)
-        ser <- UpickleUtils.writeE(game)
+        ser <- UpickleUtils.writeE(game, prettyFormat = true)
       } yield {
         val file = new Blob(js.Array(ser), BlobPropertyBag("text/plain"))
         anchor.href = URL.createObjectURL(file)
@@ -302,7 +303,7 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, newGa
         false
       case Right((showPrompt, newUserName, newFs, newShell, newRootAuthentication, newRootPassword, newUserPassword)) =>
         try {
-          clear(messagesTerminal)
+          clearScreen(messagesTerminal)
 
           messagesTerminal.add(s"Game loaded from ${f.name}\n")
           messagesTerminal.flush()
@@ -338,7 +339,7 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, newGa
           shell = newShell
           shell.currentFolder = homeFolder
 
-          clear(mainTerminal)
+          clearScreen(mainTerminal)
 
           getBackgroundCommand match {
             case Some(x) => shell.startWithCommand(true, x._1, x._2: _*)
@@ -409,9 +410,9 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, newGa
 
 }
 
-case class SerializedFile(path: String, owner: String, permissions: Int, serializerName: String, ser: String)
+case class SerializedFile(path: String, owner: String, group: String, permissions: Int, serializerName: String, ser: String)
 
-case class SerializedFolder(path: String, owner: String, permissions: Int)
+case class SerializedFolder(path: String, owner: String, group: String, permissions: Int)
 
 case class SerializedFS(folders: List[SerializedFolder], files: List[SerializedFile])
 

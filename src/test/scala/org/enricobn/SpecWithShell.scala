@@ -19,7 +19,7 @@ abstract class SpecWithShell extends FlatSpec with MockFactory with Matchers {
 
     val _rootAuthentication = vum.logRoot(rootPassword).right.get
 
-    vum.addUser("enrico", "enrico")(_rootAuthentication)
+    vum.addUser("enrico", "enrico", "enrico")(_rootAuthentication)
 
     val virtualShell = UnixLikeVirtualShell(fs, term, fs.root, _rootAuthentication)
 

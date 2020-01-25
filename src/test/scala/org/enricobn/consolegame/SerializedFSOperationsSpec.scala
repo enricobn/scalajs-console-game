@@ -16,11 +16,11 @@ class SerializedFSOperationsSpec extends SpecWithShell {
 
   "game" should "be deserializable" in {
     val f = fixture
-    val content = rsc("buyandsell.json")
+    val content = readResource("buyandsell.json")
 
     (for {
-      _ <- f.shell.vum.addUser("user1", "user1")(f.rootAuthentication).toLeft(())
-      _ <- f.shell.vum.addUser("user2", "user2")(f.rootAuthentication).toLeft(())
+      _ <- f.shell.vum.addUser("user1", "user1", "game")(f.rootAuthentication).toLeft(())
+      _ <- f.shell.vum.addUser("user2", "user2", "game")(f.rootAuthentication).toLeft(())
       serializedGame <- UpickleUtils.readE[SerializedGame](content)
       _ <- SerializedFSOperations.load(f.shell, serializers, serializedGame.fs)(f.rootAuthentication)
       _ <- f.shell.login("enrico", "enrico")
@@ -35,7 +35,7 @@ class SerializedFSOperationsSpec extends SpecWithShell {
   /**
     * from https://stackoverflow.com/questions/40866662/unit-testing-scala-js-read-test-data-from-file-residing-in-test-resources
     */
-  def rsc(path: String): String = {
+  def readResource(path: String): String = {
     import scalajs.js.Dynamic.{global => g}
     val fs = g.require("fs")
 
@@ -43,10 +43,10 @@ class SerializedFSOperationsSpec extends SpecWithShell {
       fs.readFileSync(name).toString
     }
 
-    readFile(rscPath(path))
+    readFile(resourcesPath(path))
   }
 
-  def rscPath(path: String): String = "src/test/resources/" + path
+  def resourcesPath(path: String): String = "src/test/resources/" + path
 
 }
 

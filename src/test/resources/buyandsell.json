@@ -5,115 +5,149 @@
       {
         "path": "/etc",
         "owner": "root",
+        "group": "root",
         "permissions": 775
       },
       {
         "path": "/bin",
         "owner": "root",
+        "group": "root",
         "permissions": 775
       },
       {
         "path": "/home",
         "owner": "root",
+        "group": "root",
         "permissions": 775
       },
       {
         "path": "/usr",
         "owner": "root",
+        "group": "root",
         "permissions": 775
       },
       {
         "path": "/var",
         "owner": "root",
+        "group": "root",
         "permissions": 775
       },
       {
         "path": "/home/user1/User1City",
         "owner": "user1",
+        "group": "game",
         "permissions": 775
       },
       {
         "path": "/home/user2/User2City",
         "owner": "user2",
+        "group": "game",
         "permissions": 775
       },
       {
         "path": "/home/user2",
         "owner": "user2",
+        "group": "root",
         "permissions": 775
       },
       {
         "path": "/usr/bin",
         "owner": "root",
+        "group": "root",
+        "permissions": 775
+      },
+      {
+        "path": "/home/root",
+        "owner": "root",
+        "group": "root",
         "permissions": 775
       },
       {
         "path": "/home/enrico/Pisa",
         "owner": "enrico",
+        "group": "game",
         "permissions": 775
       },
       {
         "path": "/home/enrico",
         "owner": "enrico",
+        "group": "root",
         "permissions": 775
       },
       {
         "path": "/var/log",
         "owner": "root",
+        "group": "root",
         "permissions": 775
       },
       {
         "path": "/home/user1",
         "owner": "user1",
+        "group": "root",
         "permissions": 775
       }
     ],
     "files": [
       {
+        "path": "/etc/passwd",
+        "owner": "root",
+        "group": "root",
+        "permissions": 600,
+        "serializerName": "org.enricobn.vfs.impl.Passwd",
+        "ser": "{\"users\":[{\"auth\":{\"id\":\"49b1d656-e62e-460f-b9a7-03d7b08c6dad\",\"user\":\"root\"},\"user\":\"root\",\"password\":\"75ab1dc1-efe2-4fb9-ae35-4beb9b782ece\",\"group\":\"root\"},{\"auth\":{\"id\":\"23f13358-4769-4191-ab2b-70282bd32d68\",\"user\":\"enrico\"},\"user\":\"enrico\",\"password\":\"3053ef0d-055a-4a50-b7ed-a784a1518a84\",\"group\":\"game\"},{\"auth\":{\"id\":\"602230b9-1b9c-466c-8fb9-fc079c2cf55f\",\"user\":\"user1\"},\"user\":\"user1\",\"password\":\"e4c61beb-3598-4824-987e-d01f3f8dfb6f\",\"group\":\"game\"},{\"auth\":{\"id\":\"3c0ff0bd-47f3-4267-8bb0-412f15b15f92\",\"user\":\"user2\"},\"user\":\"user2\",\"password\":\"51491419-4c5b-4b23-b5e5-fe37d69959f2\",\"group\":\"game\"}]}"
+      },
+      {
         "path": "/home/user1/User1City/warehouse",
         "owner": "user1",
+        "group": "game",
         "permissions": 664,
         "serializerName": "org.enricobn.buyandsell.content.Warehouse",
-        "ser": "{\n  \"goods\": {\n    \"gold\": 2,\n    \"silver\": 10,\n    \"bronze\": 20\n  }\n}"
+        "ser": "{\"goods\":{\"gold\":2,\"silver\":10,\"bronze\":20}}"
       },
       {
         "path": "/home/user2/User2City/warehouse",
         "owner": "user2",
+        "group": "game",
         "permissions": 664,
         "serializerName": "org.enricobn.buyandsell.content.Warehouse",
-        "ser": "{\n  \"goods\": {\n    \"gold\": 2,\n    \"silver\": 10,\n    \"bronze\": 20\n  }\n}"
+        "ser": "{\"goods\":{\"gold\":2,\"silver\":10,\"bronze\":20}}"
       },
       {
         "path": "/home/enrico/Pisa/warehouse",
         "owner": "enrico",
+        "group": "game",
         "permissions": 664,
         "serializerName": "org.enricobn.buyandsell.content.Warehouse",
-        "ser": "{\n  \"goods\": {\n    \"gold\": 2,\n    \"silver\": 10,\n    \"bronze\": 20\n  }\n}"
+        "ser": "{\"goods\":{\"gold\":2,\"silver\":10,\"bronze\":20}}"
       },
       {
         "path": "/etc/profile",
         "owner": "root",
+        "group": "root",
         "permissions": 664,
         "serializerName": "org.enricobn.shell.impl.StringMap",
-        "ser": "{\n  \"value\": {\n    \"PATH\": \"/bin:/usr/bin\"\n  }\n}"
+        "ser": "{\"value\":{\"PATH\":\"/bin:/usr/bin\"}}"
       },
       {
         "path": "/home/enrico/.history",
         "owner": "enrico",
+        "group": "game",
         "permissions": 664,
         "serializerName": "org.enricobn.shell.impl.StringList",
-        "ser": "{\n  \"value\": [\n    \"createcity Pisa\"\n  ]\n}"
+        "ser": "{\"value\":[\"createcity Pisa\"]}"
       },
       {
         "path": "/home/enrico/market",
         "owner": "enrico",
-        "permissions": 666,
+        "group": "game",
+        "permissions": 664,
         "serializerName": "org.enricobn.buyandsell.content.Market",
-        "ser": "{\n  \"defaultPrices\": {\n    \"gold\": \"1000\",\n    \"silver\": \"300\",\n    \"bronze\": \"50\"\n  },\n  \"entries\": {\n    \"gold\": {\n      \"qty\": 6,\n      \"price\": \"166.67\"\n    },\n    \"silver\": {\n      \"qty\": 30,\n      \"price\": \"10.00\"\n    },\n    \"bronze\": {\n      \"qty\": 60,\n      \"price\": \"0.83\"\n    }\n  }\n}"
+        "ser": "{\"defaultPrices\":{\"gold\":\"1000\",\"silver\":\"300\",\"bronze\":\"50\"},\"entries\":{\"gold\":{\"qty\":6,\"price\":\"166.67\"},\"silver\":{\"qty\":30,\"price\":\"10.00\"},\"bronze\":{\"qty\":60,\"price\":\"0.83\"}}}"
       },
       {
         "path": "/home/user1/.profile",
         "owner": "user1",
+        "group": "game",
         "permissions": 664,
         "serializerName": "org.enricobn.shell.impl.StringMap",
         "ser": "{}"
@@ -121,13 +155,15 @@
       {
         "path": "/etc/gameinfo",
         "owner": "root",
+        "group": "root",
         "permissions": 664,
         "serializerName": "org.enricobn.buyandsell.content.GameInfo",
-        "ser": "{\n  \"user\": \"enrico\"\n}"
+        "ser": "{\"user\":\"enrico\"}"
       },
       {
         "path": "/home/user2/.profile",
         "owner": "user2",
+        "group": "game",
         "permissions": 664,
         "serializerName": "org.enricobn.shell.impl.StringMap",
         "ser": "{}"
@@ -135,20 +171,15 @@
       {
         "path": "/home/enrico/gamestats",
         "owner": "enrico",
+        "group": "game",
         "permissions": 664,
         "serializerName": "org.enricobn.buyandsell.content.GameStatistics",
-        "ser": "{\n  \"money\": \"10000\",\n  \"availableCities\": 2,\n  \"cities\": []\n}"
-      },
-      {
-        "path": "/etc/passwd",
-        "owner": "root",
-        "permissions": 600,
-        "serializerName": "org.enricobn.vfs.impl.Passwd",
-        "ser": "{\n  \"users\": [\n    {\n      \"auth\": {\n        \"id\": \"386ba1ee-1a11-40bf-8989-393fbee977e7\",\n        \"user\": \"root\"\n      },\n      \"user\": \"root\",\n      \"password\": \"5bbe5b0f-500b-4ae7-bfc0-3a033eb78ca5\"\n    },\n    {\n      \"auth\": {\n        \"id\": \"6acbb0bb-b6b8-46de-b881-9d9ded50b6fa\",\n        \"user\": \"enrico\"\n      },\n      \"user\": \"enrico\",\n      \"password\": \"eae41c07-f6b1-41e0-bf37-ed2605ed38f3\"\n    },\n    {\n      \"auth\": {\n        \"id\": \"40e01128-6d8e-4a3f-8724-567d2ec0f1cb\",\n        \"user\": \"user1\"\n      },\n      \"user\": \"user1\",\n      \"password\": \"b08a72df-6333-4e3f-b4a6-659791c4d2b5\"\n    },\n    {\n      \"auth\": {\n        \"id\": \"feb210a3-804d-4bfa-8d7f-50b0fc6ab0e3\",\n        \"user\": \"user2\"\n      },\n      \"user\": \"user2\",\n      \"password\": \"2711dd1b-0cd3-4d5e-9fc4-c7b5f114b57a\"\n    }\n  ]\n}"
+        "ser": "{\"money\":\"10000\",\"availableCities\":2,\"cities\":[]}"
       },
       {
         "path": "/home/enrico/.profile",
         "owner": "enrico",
+        "group": "game",
         "permissions": 664,
         "serializerName": "org.enricobn.shell.impl.StringMap",
         "ser": "{}"
@@ -156,9 +187,10 @@
       {
         "path": "/var/log/messages.log",
         "owner": "enrico",
+        "group": "root",
         "permissions": 664,
         "serializerName": "org.enricobn.consolegame.content.Messages",
-        "ser": "{\n  \"messages\": []\n}"
+        "ser": "{\"messages\":[]}"
       }
     ]
   }
