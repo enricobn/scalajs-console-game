@@ -17,9 +17,9 @@ object SerializedFSOperations {
       _ <- Utils.lift(serializedFS.folders.sortBy(_.path).map(serializedFolder => {
         for {
           folder <- mkdir(shell, serializedFolder.path).right
-          _ <- folder.chown(serializedFolder.owner).toLeft(()).right
-          _ <- folder.chgrp(serializedFolder.group).toLeft(()).right
-          result <- folder.chmod(serializedFolder.permissions).toLeft(()).right
+          _ <- folder.chown(serializedFolder.owner).right
+          _ <- folder.chgrp(serializedFolder.group).right
+          result <- folder.chmod(serializedFolder.permissions).right
         } yield {
           result
         }
@@ -41,9 +41,9 @@ object SerializedFSOperations {
                     } else {
                       parentFolder.touch(path.name).right
                     }
-            _ <- file.chown(serializedFile.owner).toLeft(()).right
-            _ <- file.chgrp(serializedFile.group).toLeft(()).right
-            _ <- file.chmod(serializedFile.permissions).toLeft(()).right
+            _ <- file.chown(serializedFile.owner).right
+            _ <- file.chgrp(serializedFile.group).right
+            _ <- file.chmod(serializedFile.permissions).right
           } yield fileSerializerDeSerialized(serializedFile, serializer)
         }
 
@@ -57,12 +57,8 @@ object SerializedFSOperations {
       contentFiles <- Utils.liftTuple(serializedAndSerializerAndContent.map {case ((serializedFile, _), content) =>
         (content, shell.toFile(serializedFile.path))
       }).right
-      result <- Utils.mapFirstSome[(AnyRef, VirtualFile), IOError](contentFiles,
-        { case (content, file) => file.setContent(content) }
-      ).toLeft(()).right
-    } yield {
-      result
-    }
+      _ <- Utils.lift(contentFiles.map { case (content, file) => file.setContent(content) }).right
+    } yield ()
 
   /**
     * Builds a SerializedFS.

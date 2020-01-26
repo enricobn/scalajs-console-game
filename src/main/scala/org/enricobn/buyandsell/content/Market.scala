@@ -4,7 +4,7 @@ import org.enricobn.consolegame.UpickleUtils
 import org.enricobn.consolegame.content.SimpleSerializer
 import org.enricobn.shell.impl.VirtualShell
 import org.enricobn.vfs.utils.Utils.RightBiasedEither
-import org.enricobn.vfs.{Authentication, IOError, VirtualFileWithContent}
+import org.enricobn.vfs.{Authentication, IOError, VirtualFileWithContent, VirtualPath}
 
 import scala.math.BigDecimal.RoundingMode
 
@@ -34,9 +34,8 @@ object Market {
 
     for {
       gameInfo <- GameInfo.get(shell.fs).flatMap(_.content())
-      home <- shell.fs.root.resolveFolderOrError("home/" + gameInfo.user)
-      fileWithContent <- VirtualFileWithContent.getOrCreate(classOf[Market], home, NAME, { () => Market(Map(), Map()) })
-    } yield fileWithContent
+      path <- VirtualPath.of("home", gameInfo.user, NAME)
+    } yield new VirtualFileWithContent(classOf[Market], shell.fs, path)
 
   }
 

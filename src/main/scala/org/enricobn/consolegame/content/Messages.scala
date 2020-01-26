@@ -25,17 +25,17 @@ object Messages {
     shell.fs.root.resolveFileOrError(List("var", "log", "messages.log"))
   }
 
-  def addMessage(shell: VirtualShell, message: String) : Option[IOError] = {
+  def addMessage(shell: VirtualShell, message: String) : Either[IOError, Unit] = {
     implicit val authentication: Authentication = shell.authentication
 
     val runAddMessage = for {
       messagesFile <- shell.fs.root.resolveFileOrError(List("var", "log", "messages.log")).right
       messages <- messagesFile.contentAs(classOf[Messages]).right
       newMessages <- Right(messages.add(message)).right
-      result <- messagesFile.setContent(newMessages).toLeft(()).right
+      result <- messagesFile.setContent(newMessages).right
     } yield result
 
-    runAddMessage.left.toOption
+    runAddMessage
   }
 
 }

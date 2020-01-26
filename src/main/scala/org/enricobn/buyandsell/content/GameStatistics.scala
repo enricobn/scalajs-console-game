@@ -4,7 +4,7 @@ import org.enricobn.consolegame.UpickleUtils
 import org.enricobn.consolegame.content.SimpleSerializer
 import org.enricobn.shell.impl.VirtualShell
 import org.enricobn.vfs.utils.Utils.RightBiasedEither
-import org.enricobn.vfs.{Authentication, IOError, VirtualFileWithContent}
+import org.enricobn.vfs.{Authentication, IOError, VirtualFileWithContent, VirtualPath}
 
 case class GameStatistics(money: BigDecimal, availableCities: Int, cities: Set[String]) {
 
@@ -20,8 +20,8 @@ object GameStatistics {
 
     for {
       home <- shell.homeFolder
-      result <- VirtualFileWithContent.getOrCreate(classOf[GameStatistics], home, "gamestats", () => GameStatistics(10000, 2, Set.empty))
-    } yield result
+      path <- VirtualPath.of(home.path)
+    } yield new VirtualFileWithContent(classOf[GameStatistics], shell.fs, path.andThen("gamestats"))
   }
 
 }

@@ -22,15 +22,17 @@ import scala.scalajs.js
 import scala.scalajs.js.annotation.JSExportAll
 
 // to access members of structural types (new {}) without warnings
+import org.enricobn.vfs.IOError._
+
 import scala.language.reflectiveCalls
 
 object ConsoleGame {
   private val group = "game"
   // TODO move in VirtualFile?
-  private def delete(file: VirtualFile)(implicit authentication: Authentication): Option[IOError] =
+  private def delete(file: VirtualFile)(implicit authentication: Authentication): Either[IOError, Unit] =
     file.parent match {
       case Some(folder) => folder.deleteFile(file.name)
-      case _ => Some(IOError("No parent"))
+      case _ => "No parent".ioErrorE
     }
 
   private def initFS(fs: UnixLikeInMemoryFS, userName: String, allCommands: Either[IOError, Seq[GameCommand]])
@@ -45,8 +47,9 @@ object ConsoleGame {
       } else {
         fs.varLog.createFile("messages.log", Messages(Seq.empty))
       }
-      _ <- messagesFile.chown(userName).toLeft(())
-      _ <- GameInfo.getOrCreate(fs, () => GameInfo(userName))
+      _ <- messagesFile.chown(userName)
+      gameInfo <- GameInfo.get(fs)
+      _ <- gameInfo.setContent(GameInfo(userName))
     } yield ()
 
   val globalSerializers: Seq[Serializer] = List(MessagesSerializer, StringListSerializer, StringMapSerializer, GameInfoSerializer)
@@ -109,7 +112,7 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, newGa
   loadGame.addEventListener("change", readGame(loadGame) _, useCapture = false)
   saveGameAnchor.onclick = onSaveGame(saveGameAnchor) _
 
-  def onNewGame(shell: VirtualShell): Option[IOError]
+  def onNewGame(shell: VirtualShell): Either[IOError, Unit]
 
   /**
     *
@@ -133,7 +136,7 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, newGa
     userTerminal.setShell(userShell)
 
     for {
-      _ <- shell.vum.addUser(user, password, group)(rootAuthentication).toLeft(()).right
+      _ <- shell.vum.addUser(user, password, group)(rootAuthentication).right
       _ <- userShell.login(user, password).right
     } yield userShell
   }
@@ -168,7 +171,7 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, newGa
     val newFs = newShell.fs.asInstanceOf[UnixLikeInMemoryFS]
 
     val runInit = for {
-      _ <- newFs.vum.addUser(newUserName, userPassword, group).toLeft(())
+      _ <- newFs.vum.addUser(newUserName, userPassword, group)
       _ <- ConsoleGame.initFS(newFs, newUserName, allCommands)
       userHome <- newShell.toFolder("/home/" + newUserName)
       newMessagesShell = UnixLikeVirtualShell(newFs, messagesTerminal, newFs.root, rootAuthentication)
@@ -201,15 +204,15 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, newGa
         messagesShell.startWithCommand(background = false, MessagesCommand.NAME)
 
         executeLater(() => {
-          onNewGame(shell).fold {
+          onNewGame(shell).fold({ e =>
+            showError("Error initializing game.", e)
+          }, { _ =>
             getBackgroundCommand match {
               case Some(x) => shell.startWithCommand(true, x._1, x._2: _*)
               case None => shell.start()
             }
             changePermissionOfPrivateCommands.left.foreach(showError("Error changing permissions of start commands.", _))
-          } {
-            showError("Error initializing game.", _)
-          }
+          })
         })
     }
   }
@@ -223,7 +226,7 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, newGa
       _ <- Right(for (command <- privateCommands) yield {
         for {
           file <- fs.usrBin.resolveFileOrError(command.name)
-          _ <- file.setPermissions(privatePermission).toLeft(())
+          _ <- file.setPermissions(privatePermission)
         } yield ()
       })
     } yield ()

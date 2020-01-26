@@ -4,17 +4,27 @@ import org.enricobn.consolegame.UpickleUtils
 import org.enricobn.consolegame.content.SimpleSerializer
 import org.enricobn.shell.impl.VirtualShell
 import org.enricobn.vfs.utils.Utils.RightBiasedEither
-import org.enricobn.vfs.{Authentication, IOError}
+import org.enricobn.vfs.{Authentication, IOError, VirtualPath}
 import upickle.default._
 
 object City {
+  val fileName = "city"
 
-  def get(shell: VirtualShell, cityName: String): Either[IOError, City] = {
+  def get(shell: VirtualShell, user: String, cityName: String): Either[IOError, City] = {
     implicit val authentication: Authentication = shell.authentication
 
     for {
-      home <- shell.homeFolder
-      cityFile <- home.resolveFileOrError(List(cityName, "city"))
+      path <- VirtualPath.of("home", user, cityName)
+      cityFile <- shell.fs.root.resolveFileOrError(path)
+      city <- cityFile.contentAs(classOf[City])
+    } yield city
+  }
+
+  def get(shell: VirtualShell): Either[IOError, City] = {
+    implicit val authentication: Authentication = shell.authentication
+
+    for {
+      cityFile <- shell.currentFolder.findFileOrError(fileName, "this is not a city.")
       city <- cityFile.contentAs(classOf[City])
     } yield city
   }

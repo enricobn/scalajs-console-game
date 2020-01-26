@@ -5,6 +5,7 @@ import org.enricobn.consolegame.content.Messages
 import org.enricobn.shell._
 import org.enricobn.shell.impl._
 import org.enricobn.vfs._
+import org.enricobn.vfs.utils.Utils.RightBiasedEither
 
 /**
   * Created by enrico on 12/17/16.
@@ -46,13 +47,13 @@ object SellCommand extends VirtualCommandAbstract("sell", FILE, GOOD, QTY) {
       val qty = args(2).asInstanceOf[Int]
 
       for {
-        warehouse <- file.contentAs(classOf[Warehouse]).right
-        gamestatsFile <- GameStatistics.apply(shell).right
-        marketEntry <- Market.get(shell, good).right
-        _ <- gamestatsFile.mapContent(_.add(marketEntry.price * qty)).right
-        newWarehouse <- Right(warehouse.add(shell, good, -qty)).right
-        _ <- file.setContent(newWarehouse).toLeft(()).right
-        _ <- Messages.addMessage(shell, "sell " + qty + " of " + good).toLeft(()).right
+        warehouse <- file.contentAs(classOf[Warehouse])
+        gamestatsFile <- GameStatistics.apply(shell)
+        marketEntry <- Market.get(shell, good)
+        _ <- gamestatsFile.mapContent(_.add(marketEntry.price * qty))
+        newWarehouse <- Right(warehouse.add(shell, good, -qty))
+        _ <- file.setContent(newWarehouse)
+        _ <- Messages.addMessage(shell, "sell " + qty + " of " + good)
       } yield new VirtualProcess()
 
   }

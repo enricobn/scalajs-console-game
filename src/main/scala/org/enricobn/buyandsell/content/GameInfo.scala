@@ -3,23 +3,15 @@ package org.enricobn.buyandsell.content
 import org.enricobn.consolegame.UpickleUtils
 import org.enricobn.consolegame.content.SimpleSerializer
 import org.enricobn.vfs.utils.Utils.RightBiasedEither
-import org.enricobn.vfs.{Authentication, IOError, VirtualFS, VirtualFileWithContent}
+import org.enricobn.vfs._
 import upickle.default._
 
 object GameInfo {
 
   def get(fs: VirtualFS)(implicit authentication: Authentication): Either[IOError, VirtualFileWithContent[GameInfo]] = {
     for {
-      etc <- fs.root.resolveFolderOrError("etc")
-      file <- etc.findFileOrError("gameinfo", "cannot find gameinfo file")
-      fileWithContent <- Right(new VirtualFileWithContent(classOf[GameInfo], file))
-    } yield fileWithContent
-  }
-
-  def getOrCreate(fs: VirtualFS, createFun: () => GameInfo)(implicit authentication: Authentication): Either[IOError, VirtualFileWithContent[GameInfo]] = {
-    for {
-      etc <- fs.root.resolveFolderOrError("etc")
-      fileWithContent <- VirtualFileWithContent.getOrCreate(classOf[GameInfo], etc, "gameinfo", createFun)
+      path <- VirtualPath.of("etc", "gameinfo")
+      fileWithContent <- Right(new VirtualFileWithContent(classOf[GameInfo], fs, path))
     } yield fileWithContent
   }
 

@@ -89,14 +89,6 @@
     ],
     "files": [
       {
-        "path": "/etc/passwd",
-        "owner": "root",
-        "group": "root",
-        "permissions": 600,
-        "serializerName": "org.enricobn.vfs.impl.Passwd",
-        "ser": "{\"users\":[{\"auth\":{\"id\":\"49b1d656-e62e-460f-b9a7-03d7b08c6dad\",\"user\":\"root\"},\"user\":\"root\",\"password\":\"75ab1dc1-efe2-4fb9-ae35-4beb9b782ece\",\"group\":\"root\"},{\"auth\":{\"id\":\"23f13358-4769-4191-ab2b-70282bd32d68\",\"user\":\"enrico\"},\"user\":\"enrico\",\"password\":\"3053ef0d-055a-4a50-b7ed-a784a1518a84\",\"group\":\"game\"},{\"auth\":{\"id\":\"602230b9-1b9c-466c-8fb9-fc079c2cf55f\",\"user\":\"user1\"},\"user\":\"user1\",\"password\":\"e4c61beb-3598-4824-987e-d01f3f8dfb6f\",\"group\":\"game\"},{\"auth\":{\"id\":\"3c0ff0bd-47f3-4267-8bb0-412f15b15f92\",\"user\":\"user2\"},\"user\":\"user2\",\"password\":\"51491419-4c5b-4b23-b5e5-fe37d69959f2\",\"group\":\"game\"}]}"
-      },
-      {
         "path": "/home/user1/User1City/warehouse",
         "owner": "user1",
         "group": "game",
@@ -175,6 +167,14 @@
         "permissions": 664,
         "serializerName": "org.enricobn.buyandsell.content.GameStatistics",
         "ser": "{\"money\":\"10000\",\"availableCities\":2,\"cities\":[]}"
+      },
+      {
+        "path": "/etc/passwd",
+        "owner": "root",
+        "group": "root",
+        "permissions": 600,
+        "serializerName": "org.enricobn.vfs.impl.Passwd",
+        "ser": "{\"users\":[{\"auth\":{\"id\":\"66031909-14a5-4f26-a1dd-e12c044b3de6\",\"user\":\"root\"},\"user\":\"root\",\"password\":\"90c854b4-acb9-42ec-b8f1-d762b5040de6\",\"group\":\"root\"},{\"auth\":{\"id\":\"c5b11873-040c-43a7-b894-a6ed9451df1a\",\"user\":\"enrico\"},\"user\":\"enrico\",\"password\":\"1edb7257-1d4e-4dee-ad2f-975eaac6e5e2\",\"group\":\"game\"},{\"auth\":{\"id\":\"093969ca-a350-4c4f-baee-715172ef928f\",\"user\":\"user1\"},\"user\":\"user1\",\"password\":\"12ec9de9-418f-4f05-9594-c383012ed819\",\"group\":\"game\"},{\"auth\":{\"id\":\"d01fb545-54cd-4fb3-bc27-16c7c4ee28ce\",\"user\":\"user2\"},\"user\":\"user2\",\"password\":\"e6e958ef-a282-47ed-be47-91cd0d01e155\",\"group\":\"game\"}]}"
       },
       {
         "path": "/home/enrico/.profile",

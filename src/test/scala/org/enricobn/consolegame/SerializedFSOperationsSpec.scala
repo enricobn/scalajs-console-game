@@ -19,8 +19,8 @@ class SerializedFSOperationsSpec extends SpecWithShell {
     val content = readResource("buyandsell.json")
 
     (for {
-      _ <- f.shell.vum.addUser("user1", "user1", "game")(f.rootAuthentication).toLeft(())
-      _ <- f.shell.vum.addUser("user2", "user2", "game")(f.rootAuthentication).toLeft(())
+      _ <- f.shell.vum.addUser("user1", "user1", "game")(f.rootAuthentication)
+      _ <- f.shell.vum.addUser("user2", "user2", "game")(f.rootAuthentication)
       serializedGame <- UpickleUtils.readE[SerializedGame](content)
       _ <- SerializedFSOperations.load(f.shell, serializers, serializedGame.fs)(f.rootAuthentication)
       _ <- f.shell.login("enrico", "enrico")
