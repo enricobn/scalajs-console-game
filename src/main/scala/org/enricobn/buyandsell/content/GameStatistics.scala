@@ -20,7 +20,7 @@ object GameStatistics {
 
     for {
       home <- shell.homeFolder
-      path <- VirtualPath.of(home.path)
+      path = VirtualPath(home.path)
     } yield new VirtualFileWithContent(classOf[GameStatistics], shell.fs, path.andThen("gamestats"))
   }
 
