@@ -1,6 +1,5 @@
-package org.enricobn.consolegame.content
+package org.enricobn.buyandsell.content
 
-import org.enricobn.buyandsell.content.{CityMap, Hospital, PoliceStation, Position}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.{FlatSpec, Matchers}
 

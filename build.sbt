@@ -28,6 +28,9 @@ lazy val root = (project in file("."))
     libraryDependencies += "org.scalatest" %%% "scalatest" % "3.0.4" % Test,
     //testFrameworks += new TestFramework("utest.runner.Framework"),
     //scalaJSUseMainModuleInitializer := true,
+
+    // -o causes test results to be written back to sbt, which usually displays it on the standard output
+    // -F show full stack traces
     testOptions in Test += Tests.Argument("-oF")
   )
   .enablePlugins(ScalaJSPlugin)
