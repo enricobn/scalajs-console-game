@@ -1,17 +1,12 @@
 DOING
 ------
-- use VirtualFileWithContent.getOrCreate only when needed: mandatory files should be created on new game with a
-  fixed content then use the constructor
-- trying to recreate the fs from the serialized one retaining passwd and all the folders
 - test ConsoleGame
 
 NEXT
 -----
 - remove Ctr-C handling in MessagesCommand and move it to VirtualProcess
 - it's more an issue in vfs: a file with no read permission is still visible! Look at message command and main loop command
-- let passwd a data class with a serializer in order to serialize and deserialize it?
 - can I move SerializedFS and SerializedFSOperations in scalajs-vfs?
-- make static fun to get Market from home
 - serializers: check for duplicate name
 - make ConsoleGame.createUserCommands returns a seq of tuple (commandName, command) (or an Either of)
   first of all there is not a createUserCommands function in ConsoleGame then why? I cannot remember it,

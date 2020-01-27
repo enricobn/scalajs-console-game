@@ -54,7 +54,7 @@ object ConsoleGame {
 
   val globalSerializers: Seq[Serializer] = List(MessagesSerializer, StringListSerializer, StringMapSerializer, GameInfoSerializer)
 
-  private def newMainShell(rootPassword: String, mainTerminal: Terminal): Either[IOError, VirtualShell] = {
+  private[consolegame] def createMainShell(rootPassword: String, mainTerminal: Terminal): Either[IOError, VirtualShell] = {
     val _fs = InMemoryFS(
       {VirtualUsersManagerFileImpl(_, rootPassword).right.get},
       {(_, vum) => new VirtualSecurityManagerImpl(vum)})
@@ -67,10 +67,6 @@ object ConsoleGame {
   private def clearScreen(terminal: Terminal): Unit = {
     terminal.add("\u001b[2J\u001b[1;1H") // clear screen an reset cursor to 1, 1
     terminal.flush()
-  }
-
-  private def executeLater(runnable: () => Unit): Unit = {
-    dom.window.setTimeout(runnable, 100)
   }
 
   private def showError(message: String, error: IOError): Unit = {
@@ -141,6 +137,10 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, newGa
     } yield userShell
   }
 
+  protected def executeLater(runnable: () => Unit): Unit = {
+    dom.window.setTimeout(runnable, 100)
+  }
+
   private def onNewGame(event: MouseEvent) {
     mainCanvas.contentEditable = "true"
     mainCanvas.focus()
@@ -150,33 +150,33 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, newGa
     mainTerminal.add("User name: ")
     mainTerminal.flush()
 
-    newMainShell(rootPassword, mainTerminal) match {
-      case Right(newShell) =>
+    createMainShell(rootPassword, mainTerminal) match {
+      case Right(newMainShell) =>
         if (shell != null) {
           shell.stop(rootAuthentication)
         }
         // executeLater since newGame adds an input handler to the terminal, but since it runs inside another input handler
         // (created by the readLine) the one added goes after that and the enter key is processed!
-        newShell.readLine { s => executeLater { () => newGame(s, newShell) } }
+        newMainShell.readLine { s => executeLater { () => newGame(s, newMainShell) } }
       case Left(error) => dom.window.alert(s"Error initializing: ${error.message}")
     }
 
   }
 
-  private def newGame(newUserName: String, newShell: VirtualShell) {
-    implicit val authentication: Authentication = newShell.authentication
+  private def newGame(newUserName: String, newMainShell: VirtualShell) {
+    implicit val authentication: Authentication = newMainShell.authentication
     rootAuthentication = authentication
 
     // TODO error
-    val newFs = newShell.fs.asInstanceOf[UnixLikeInMemoryFS]
+    val newFs = newMainShell.fs.asInstanceOf[UnixLikeInMemoryFS]
 
     val runInit = for {
       _ <- newFs.vum.addUser(newUserName, userPassword, group)
       _ <- ConsoleGame.initFS(newFs, newUserName, allCommands)
-      userHome <- newShell.toFolder("/home/" + newUserName)
+      userHome <- newMainShell.toFolder("/home/" + newUserName)
       newMessagesShell = UnixLikeVirtualShell(newFs, messagesTerminal, newFs.root, rootAuthentication)
       _ <- newMessagesShell.login(newUserName, userPassword)
-      _ <- newShell.login(newUserName, userPassword)
+      _ <- newMainShell.login(newUserName, userPassword)
     } yield {
       (userHome, newMessagesShell)
     }
@@ -184,7 +184,6 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, newGa
     runInit match {
       case Left(error) => dom.window.alert(s"Error initializing: ${error.message}")
       case Right((userHome, newMessageShell)) =>
-        // TODO I don't like that main shell is stopped elsewhere
         if (messagesShell != null) {
           messagesShell.stop(rootAuthentication)
         }
@@ -197,7 +196,7 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, newGa
 
         fs = newFs
         vum = fs.vum
-        shell = newShell
+        shell = newMainShell
         shell.currentFolder = userHome
 
         messagesShell = newMessageShell
