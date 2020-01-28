@@ -40,6 +40,8 @@ class ConsoleGameSpec extends FlatSpec with MockFactory with Matchers {
 
       override def executeLater(runnable: () => Unit): Unit = runnable()
 
+      override def saveToFile(content: String, fileName: String): Unit = {}
+
     }
     //game.onNewGame()
   }

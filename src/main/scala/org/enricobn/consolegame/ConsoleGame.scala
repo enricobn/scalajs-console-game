@@ -13,10 +13,7 @@ import org.enricobn.vfs._
 import org.enricobn.vfs.impl.{VirtualSecurityManagerImpl, VirtualUsersManagerFileImpl}
 import org.enricobn.vfs.inmemory.InMemoryFS
 import org.enricobn.vfs.utils.Utils.RightBiasedEither
-import org.scalajs.dom.html.Anchor
-import org.scalajs.dom.raw._
 
-import scala.scalajs.js
 import scala.scalajs.js.annotation.JSExportAll
 
 // to access members of structural types (new {}) without warnings
@@ -103,6 +100,12 @@ abstract class ConsoleGame(mainTerminal: Terminal, messagesTerminal: Terminal, l
     */
   def getBackgroundCommand: Option[(String, List[String])]
 
+  def executeLater(runnable: () => Unit): Unit
+
+  def showError(message: String) : Unit
+
+  def saveToFile(content: String, fileName: String) : Unit
+
   protected def createFakeUser(user: String): Either[IOError, VirtualShell] = {
     val userTerminal = new FakeTerminal
     val userShell = UnixLikeVirtualShell(shell.fs.asInstanceOf[UnixLikeInMemoryFS], userTerminal, shell.fs.root, rootAuthentication)
@@ -111,14 +114,10 @@ abstract class ConsoleGame(mainTerminal: Terminal, messagesTerminal: Terminal, l
     userTerminal.setShell(userShell)
 
     for {
-      _ <- shell.vum.addUser(user, password, group)(rootAuthentication).right
-      _ <- userShell.login(user, password).right
+                                       _ <- shell.vum.addUser(user, password, group)(rootAuthentication).right
+                                         _ <- userShell.login(user, password).right
     } yield userShell
   }
-
-  def executeLater(runnable: () => Unit): Unit
-
-  def showError(message: String) : Unit
 
   private[consolegame] def onNewGame() {
     clearScreen(mainTerminal)
@@ -207,16 +206,15 @@ abstract class ConsoleGame(mainTerminal: Terminal, messagesTerminal: Terminal, l
     } yield ()
   }
 
-  private[consolegame] def onSaveGame(anchor: Anchor)(evt: MouseEvent): Unit = {
+  private[consolegame] def onSaveGame(): Unit = {
     val job =
       for {
         serializedFS <- SerializedFSOperations.build(allFiles, getAllFolders(fs.root), getSerializersMap)(rootAuthentication)
         game = SerializedGame(userName, serializedFS)
         ser <- UpickleUtils.writeE(game, prettyFormat = true)
       } yield {
-        val file = new Blob(js.Array(ser), BlobPropertyBag("text/plain"))
-        anchor.href = URL.createObjectURL(file)
-        anchor.pathname = "consolegame.json"
+        val fileName = "consolegame.json"
+        saveToFile(ser, fileName)
         messagesTerminal.add(s"Game saved.\n")
         messagesTerminal.flush()
       }
@@ -228,7 +226,7 @@ abstract class ConsoleGame(mainTerminal: Terminal, messagesTerminal: Terminal, l
 
   }
 
-  protected def getSerializersMap: Map[String, Serializer] = {
+  private def getSerializersMap: Map[String, Serializer] = {
     val serializers: Map[String, Serializer] = (getSerializers ++ getGlobalSerializers).map(serializer =>
       (serializer.clazz.getName, serializer)
     ).toMap

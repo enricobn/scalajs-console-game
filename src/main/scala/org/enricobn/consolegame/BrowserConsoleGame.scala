@@ -5,7 +5,9 @@ import org.enricobn.terminal.{CanvasInputHandler, CanvasTextScreen, JSLoggerImpl
 import org.scalajs.dom
 import org.scalajs.dom.FileReader
 import org.scalajs.dom.html.{Anchor, Button, Canvas, Input}
-import org.scalajs.dom.raw.{Event, File, MouseEvent, UIEvent}
+import org.scalajs.dom.raw._
+
+import scala.scalajs.js
 
 object BrowserConsoleGame {
   val logger = new JSLoggerImpl()
@@ -29,8 +31,10 @@ abstract class BrowserConsoleGame(mainCanvasID: String, messagesCanvasID: String
     mainCanvas.focus()
     onNewGame()
   }}
+
   loadGame.addEventListener("change", readGame(loadGame) _, useCapture = false)
-  saveGameAnchor.onclick = onSaveGame(saveGameAnchor) _
+
+  saveGameAnchor.onclick = onSaveGame _
 
   private[consolegame] def readGame(input: Input)(evt: Event): Unit = {
     //Retrieve the first (and only!) File from the FileList object
@@ -47,10 +51,20 @@ abstract class BrowserConsoleGame(mainCanvasID: String, messagesCanvasID: String
     loadGame(f.name, r.result.toString)
   }
 
+  private def onSaveGame(evt: MouseEvent): Unit = {
+    onSaveGame()
+  }
+
   override def executeLater(runnable: () => Unit): Unit = {
     dom.window.setTimeout(runnable, 100)
   }
 
   override def showError(message: String): Unit = dom.window.alert(message)
+
+  override def saveToFile(content: String, fileName: String): Unit = {
+    val file = new Blob(js.Array(content), BlobPropertyBag("text/plain"))
+    saveGameAnchor.href = URL.createObjectURL(file)
+    saveGameAnchor.pathname = fileName
+  }
 
 }
