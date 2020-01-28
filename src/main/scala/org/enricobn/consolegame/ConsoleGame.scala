@@ -13,9 +13,7 @@ import org.enricobn.vfs._
 import org.enricobn.vfs.impl.{VirtualSecurityManagerImpl, VirtualUsersManagerFileImpl}
 import org.enricobn.vfs.inmemory.InMemoryFS
 import org.enricobn.vfs.utils.Utils.RightBiasedEither
-import org.scalajs.dom
-import org.scalajs.dom.FileReader
-import org.scalajs.dom.html.{Anchor, Input}
+import org.scalajs.dom.html.Anchor
 import org.scalajs.dom.raw._
 
 import scala.scalajs.js
@@ -69,10 +67,6 @@ object ConsoleGame {
     terminal.flush()
   }
 
-  private def showError(message: String, error: IOError): Unit = {
-    println(error.message)
-    dom.window.alert(s"$message See javascript console for details.")
-  }
 }
 
 /**
@@ -113,6 +107,7 @@ abstract class ConsoleGame(mainTerminal: Terminal, messagesTerminal: Terminal, l
     val userTerminal = new FakeTerminal
     val userShell = UnixLikeVirtualShell(shell.fs.asInstanceOf[UnixLikeInMemoryFS], userTerminal, shell.fs.root, rootAuthentication)
     val password = UUID.randomUUID().toString
+
     userTerminal.setShell(userShell)
 
     for {
@@ -121,9 +116,9 @@ abstract class ConsoleGame(mainTerminal: Terminal, messagesTerminal: Terminal, l
     } yield userShell
   }
 
-  protected def executeLater(runnable: () => Unit): Unit = {
-    dom.window.setTimeout(runnable, 100)
-  }
+  def executeLater(runnable: () => Unit): Unit
+
+  def showError(message: String) : Unit
 
   private[consolegame] def onNewGame() {
     clearScreen(mainTerminal)
@@ -139,7 +134,7 @@ abstract class ConsoleGame(mainTerminal: Terminal, messagesTerminal: Terminal, l
         // executeLater since newGame adds an input handler to the terminal, but since it runs inside another input handler
         // (created by the readLine) the one added goes after that and the enter key is processed!
         newMainShell.readLine { s => executeLater { () => newGame(s, newMainShell) } }
-      case Left(error) => dom.window.alert(s"Error initializing: ${error.message}")
+      case Left(error) => showError(s"Error initializing: ${error.message}")
     }
 
   }
@@ -163,7 +158,7 @@ abstract class ConsoleGame(mainTerminal: Terminal, messagesTerminal: Terminal, l
     }
 
     runInit match {
-      case Left(error) => dom.window.alert(s"Error initializing: ${error.message}")
+      case Left(error) => showError(s"Error initializing: ${error.message}")
       case Right((userHome, newMessageShell)) =>
         if (messagesShell != null) {
           messagesShell.stop(rootAuthentication)
@@ -185,13 +180,13 @@ abstract class ConsoleGame(mainTerminal: Terminal, messagesTerminal: Terminal, l
 
         executeLater(() => {
           onNewGame(shell).fold({ e =>
-            showError("Error initializing game.", e)
+            showError(s"Error initializing game $e")
           }, { _ =>
             getBackgroundCommand match {
               case Some(x) => shell.startWithCommand(true, x._1, x._2: _*)
               case None => shell.start()
             }
-            changePermissionOfPrivateCommands.left.foreach(showError("Error changing permissions of start commands.", _))
+            changePermissionOfPrivateCommands.left.foreach(error => showError(s"Error changing permissions of start commands. $error"))
           })
         })
     }
@@ -227,7 +222,7 @@ abstract class ConsoleGame(mainTerminal: Terminal, messagesTerminal: Terminal, l
       }
 
     job match {
-      case Left(error) => dom.window.alert(s"Error saving game: ${error.message}.")
+      case Left(error) => showError(s"Error saving game: ${error.message}.")
       case _ =>
     }
 
@@ -242,26 +237,11 @@ abstract class ConsoleGame(mainTerminal: Terminal, messagesTerminal: Terminal, l
 
   private def getGlobalSerializers = ConsoleGame.globalSerializers
 
-  private[consolegame] def readGame(input: Input)(evt: Event): Unit = {
-    //Retrieve the first (and only!) File from the FileList object
-    val f = evt.target.asInstanceOf[Input].files(0)
-
-    if (f != null) {
-      val r = new FileReader()
-      r.onload = fileReaderOnLoad(f, r) _
-      r.readAsText(f)
-    }
-  }
-
-  private def fileReaderOnLoad(f: File, r: FileReader)(e: UIEvent) {
+  private[consolegame] def loadGame(fileName: String, resultContent: String): Boolean = {
     if (messagesShell != null) {
       messagesShell.stop(rootAuthentication)
     }
 
-    loadGame(f, r.result.toString)
-  }
-
-  private def loadGame(f: File, resultContent: String): Boolean = {
     val run = for {
       serializedGame <- UpickleUtils.readE[SerializedGame](resultContent)
       passwd <- serializedGame.fs.files.find(_.path == "/etc/passwd").toRight(IOError("cannot find passwd file"))
@@ -282,13 +262,13 @@ abstract class ConsoleGame(mainTerminal: Terminal, messagesTerminal: Terminal, l
 
     run match {
       case Left(error) =>
-        showError("Error loading game", error)
+        showError(s"Error loading game $error")
         false
       case Right((showPrompt, newUserName, newFs, newShell, newRootAuthentication, newRootPassword, newUserPassword)) =>
         try {
           clearScreen(messagesTerminal)
 
-          messagesTerminal.add(s"Game loaded from ${f.name}\n")
+          messagesTerminal.add(s"Game loaded from $fileName\n")
           messagesTerminal.flush()
 
           if (fs != null) {
@@ -332,7 +312,7 @@ abstract class ConsoleGame(mainTerminal: Terminal, messagesTerminal: Terminal, l
           case e: Exception =>
             e.printStackTrace()
 
-            dom.window.alert("Error loading game. See javascript console for details.")
+            showError("Error loading game. See javascript console for details.")
 
             throw e
         }
