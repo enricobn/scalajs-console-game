@@ -6,7 +6,7 @@ import org.scalamock.scalatest.MockFactory
 import org.scalatest.{FlatSpec, Matchers}
 
 class ConsoleGameSpec extends FlatSpec with MockFactory with Matchers {
-  
+
   "createMainShell" should "log with root" in {
     val term = mock[Terminal]
 

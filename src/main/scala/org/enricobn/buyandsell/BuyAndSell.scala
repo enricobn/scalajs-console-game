@@ -3,7 +3,7 @@ package org.enricobn.buyandsell
 import org.enricobn.buyandsell.commands.{CreateCityCommand, MainLoopCommand, SellCommand}
 import org.enricobn.buyandsell.content._
 import org.enricobn.buyandsell.content.externalserializers.PasswdSerializer
-import org.enricobn.consolegame.{ConsoleGame, GameCommand, Serializer}
+import org.enricobn.consolegame.{BrowserConsoleGame, GameCommand, Serializer}
 import org.enricobn.shell.impl.VirtualShell
 import org.enricobn.vfs.utils.Utils.RightBiasedEither
 import org.enricobn.vfs.{Authentication, IOError}
@@ -18,7 +18,7 @@ object BuyAndSell {
 @JSExportTopLevel(name = "BuyAndSell")
 @JSExportAll
 class BuyAndSell(mainCanvasID: String, messagesCanvasID: String, newGameID: String, loadGameID: String, saveGameID: String)
-  extends ConsoleGame(mainCanvasID, messagesCanvasID, newGameID, loadGameID, saveGameID) {
+  extends BrowserConsoleGame(mainCanvasID, messagesCanvasID, newGameID, loadGameID, saveGameID) {
 
   override def onNewGame(shell: VirtualShell): Either[IOError, Unit] = {
     implicit val authentication: Authentication = shell.authentication

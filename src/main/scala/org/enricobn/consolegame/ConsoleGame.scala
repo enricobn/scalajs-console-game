@@ -15,7 +15,7 @@ import org.enricobn.vfs.inmemory.InMemoryFS
 import org.enricobn.vfs.utils.Utils.RightBiasedEither
 import org.scalajs.dom
 import org.scalajs.dom.FileReader
-import org.scalajs.dom.html.{Anchor, Button, Canvas, Input}
+import org.scalajs.dom.html.{Anchor, Input}
 import org.scalajs.dom.raw._
 
 import scala.scalajs.js
@@ -79,34 +79,18 @@ object ConsoleGame {
   * Created by enrico on 12/8/16.
   */
 @JSExportAll
-abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, newGameID: String, loadGameID: String, saveGameID: String) {
+abstract class ConsoleGame(mainTerminal: Terminal, messagesTerminal: Terminal, logger: JSLogger) {
 
   import org.enricobn.consolegame.ConsoleGame._
 
-  private val logger = new JSLoggerImpl()
-  private val mainScreen = new CanvasTextScreen(mainCanvasID, logger)
-  private val mainInput = new CanvasInputHandler(mainCanvasID)
-  private val mainTerminal = new TerminalImpl(mainScreen, mainInput, logger, "typewriter-key-1.wav")
-  private val mainCanvas = dom.document.getElementById(mainCanvasID).asInstanceOf[Canvas]
-  private val messagesScreen = new CanvasTextScreen(messagesCanvasID, logger)
-  private val messagesInput = new CanvasInputHandler(messagesCanvasID)
-  private val messagesTerminal = new TerminalImpl(messagesScreen, messagesInput, logger, "typewriter-key-1.wav")
   private var rootPassword = UUID.randomUUID().toString
   private var userPassword = UUID.randomUUID().toString
   private var fs: UnixLikeInMemoryFS = _
   private var vum: VirtualUsersManager = _
   private var rootAuthentication: Authentication = _
-  private var shell: VirtualShell = _
+  protected var shell: VirtualShell = _
   private var messagesShell: VirtualShell = _
   private var userName: String = _
-
-  private val newGameButton = dom.document.getElementById(newGameID).asInstanceOf[Button]
-  private val loadGame = dom.document.getElementById(loadGameID).asInstanceOf[Input]
-  private val saveGameAnchor = dom.document.getElementById(saveGameID).asInstanceOf[Anchor]
-
-  newGameButton.onclick = onNewGame _
-  loadGame.addEventListener("change", readGame(loadGame) _, useCapture = false)
-  saveGameAnchor.onclick = onSaveGame(saveGameAnchor) _
 
   def onNewGame(shell: VirtualShell): Either[IOError, Unit]
 
@@ -141,10 +125,7 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, newGa
     dom.window.setTimeout(runnable, 100)
   }
 
-  private def onNewGame(event: MouseEvent) {
-    mainCanvas.contentEditable = "true"
-    mainCanvas.focus()
-
+  private[consolegame] def onNewGame() {
     clearScreen(mainTerminal)
 
     mainTerminal.add("User name: ")
@@ -231,7 +212,7 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, newGa
     } yield ()
   }
 
-  private def onSaveGame(anchor: Anchor)(evt: MouseEvent): Unit = {
+  private[consolegame] def onSaveGame(anchor: Anchor)(evt: MouseEvent): Unit = {
     val job =
       for {
         serializedFS <- SerializedFSOperations.build(allFiles, getAllFolders(fs.root), getSerializersMap)(rootAuthentication)
@@ -261,7 +242,7 @@ abstract class ConsoleGame(mainCanvasID: String, messagesCanvasID: String, newGa
 
   private def getGlobalSerializers = ConsoleGame.globalSerializers
 
-  private def readGame(input: Input)(evt: Event): Unit = {
+  private[consolegame] def readGame(input: Input)(evt: Event): Unit = {
     //Retrieve the first (and only!) File from the FileList object
     val f = evt.target.asInstanceOf[Input].files(0)
 
