@@ -4,7 +4,6 @@ import org.enricobn.buyandsell.content.{GameStatistics, GoodEnum, Warehouse}
 import org.enricobn.consolegame.content.Messages
 import org.enricobn.shell._
 import org.enricobn.shell.impl._
-import org.enricobn.vfs.IOError._
 import org.enricobn.vfs._
 import org.enricobn.vfs.utils.Utils.RightBiasedEither
 
@@ -56,10 +55,7 @@ object BuyCommand extends VirtualCommandAbstract("buy", FROM, GOOD, QTY, TO) {
         fromWarehouse <- from.contentAs(classOf[Warehouse])
         toWarehouse <- to.contentAs(classOf[Warehouse])
         gamestatsFile <- GameStatistics.get(shell)
-        price <- fromWarehouse.getPrice(GoodEnum.withName(good)) match {
-          case Some(p) => Right(p)
-          case _ => s"Cannot find price for $good".ioErrorE
-        }
+        price <- fromWarehouse.getPrice(GoodEnum.withName(good))
         newFromWarehouse <- fromWarehouse.change(GoodEnum.withName(good), -qty)
         newToWarehouse <- toWarehouse.change(GoodEnum.withName(good), qty)
         _ <- from.setContent(newFromWarehouse)

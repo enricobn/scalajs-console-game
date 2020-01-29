@@ -27,7 +27,8 @@ object Warehouse {
   */
 case class Warehouse(private val goods: List[Good]) {
 
-  def estimate(goodEnum: GoodEnum, qty: Int): BigDecimal = ???
+  def estimate(goodEnum: GoodEnum, qty: Int): Either[IOError, BigDecimal] =
+    getPrice(goodEnum).map(qty * _.base)
 
   def change(goodEnum: GoodEnum, qty: Int): Either[IOError, Warehouse] = {
     // TODO handle error
@@ -47,8 +48,12 @@ case class Warehouse(private val goods: List[Good]) {
     }
   }
 
-  def getPrice(goodEnum: GoodEnum): Option[Price] =
-    goods.find(_.good == goodEnum.toString).flatMap(_.price)
+  def getPrice(goodEnum: GoodEnum): Either[IOError, Price] =
+    goods.find(_.good == goodEnum.toString)
+      .flatMap(_.price) match {
+        case Some(p) => Right(p)
+        case _ => s"Cannot find good $goodEnum".ioErrorE
+      }
 
   def availableGoodNames: List[String] = goods.filter(good => good.qty > 0 && good.price.nonEmpty).map(_.good.toString)
 
