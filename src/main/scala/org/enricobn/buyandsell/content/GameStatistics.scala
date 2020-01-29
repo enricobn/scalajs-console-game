@@ -15,7 +15,7 @@ case class GameStatistics(money: BigDecimal, availableCities: Int, cities: Set[S
 
 object GameStatistics {
 
-  def apply(shell: VirtualShell) : Either[IOError, VirtualFileWithContent[GameStatistics]] = {
+  def get(shell: VirtualShell) : Either[IOError, VirtualFileWithContent[GameStatistics]] = {
     implicit val authentication: Authentication = shell.authentication
 
     for {

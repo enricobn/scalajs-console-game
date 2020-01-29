@@ -1,6 +1,6 @@
 package org.enricobn.buyandsell.commands
 
-import org.enricobn.buyandsell.content.{City, Statistics, Warehouse}
+import org.enricobn.buyandsell.content._
 import org.enricobn.shell.impl.{StringArgument, VirtualCommandAbstract, VirtualShell}
 import org.enricobn.shell.{ShellInput, ShellOutput, VirtualProcess}
 import org.enricobn.vfs.{Authentication, IOError}
@@ -15,12 +15,15 @@ object CreateCityCommand extends VirtualCommandAbstract("createcity", StringArgu
     val cityName = args.head.asInstanceOf[String]
 
     val city = City(cityName, Statistics(population = 0, employed = 0))
-    val warehouse = Warehouse(Map())
-      .add(shell, "gold",  2)
-      .add(shell, "silver",  10)
-      .add(shell, "bronze",  20)
 
     for {
+      warehouse <- Warehouse(List())
+        .change(GoodEnum.gold, 5)
+        .flatMap(_.change(GoodEnum.silver, 10))
+        .flatMap(_.change(GoodEnum.bronze, 20))
+        .flatMap(_.setPrice(GoodEnum.gold, Price(1000)))
+        .flatMap(_.setPrice(GoodEnum.silver, Price(300)))
+        .flatMap(_.setPrice(GoodEnum.bronze, Price(50)))
       home <- shell.homeFolder
       cityFolder <- home.mkdir(cityName)
       _ <- cityFolder.createFile("city", city)
@@ -32,3 +35,4 @@ object CreateCityCommand extends VirtualCommandAbstract("createcity", StringArgu
   override def completion(line: String, shell: VirtualShell): Seq[String] = Seq.empty
 
 }
+

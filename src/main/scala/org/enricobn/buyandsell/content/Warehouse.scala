@@ -1,5 +1,6 @@
 package org.enricobn.buyandsell.content
 
+import org.enricobn.buyandsell.content.GoodEnum.GoodEnum
 import org.enricobn.consolegame.UpickleUtils
 import org.enricobn.consolegame.content.SimpleSerializer
 import org.enricobn.shell.impl.VirtualShell
@@ -24,34 +25,45 @@ object Warehouse {
 /**
   * Created by enrico on 12/17/16.
   */
-case class Warehouse(goods: Map[String, Int]) {
+case class Warehouse(private val goods: List[Good]) {
 
-  def add(shell: VirtualShell, good: String, qty: Int): Warehouse = {
+  def estimate(goodEnum: GoodEnum, qty: Int): BigDecimal = ???
+
+  def change(goodEnum: GoodEnum, qty: Int): Either[IOError, Warehouse] = {
     // TODO handle error
-    Market.goodChanged(shell, good, qty)
-    goods.get(good) match {
-      case Some(v) => Warehouse(goods + (good -> (qty + v)))
-      case _ => Warehouse(goods + (good -> qty))
+    //Market.goodChanged(shell, goodEnum, qty)
+    goods.find(_.good == goodEnum.toString) match {
+      case Some(v) if qty > 0 || -qty <= v.qty => Right(Warehouse(Good(goodEnum.toString, qty + v.qty, v.price) :: goods.filter(_.good != goodEnum.toString)))
+      case Some(_) => "Not enough quantity.".ioErrorE
+      case None if qty > 0 => Right(Warehouse(Good(goodEnum.toString, qty, None) :: goods))
+      case None => "Cannot find good.".ioErrorE
     }
   }
 
-  def sell(shell: VirtualShell, good: String, qty: Int): Either[IOError, Warehouse] = {
-    goods.get(good) match {
-      case Some(v) if v > qty =>
-        Right(Warehouse(goods + (good -> (v - qty))))
-      case Some(v) if v == qty =>
-        Right(Warehouse(goods - good))
-      case Some(_) =>
-        "Invalid qty.".ioErrorE
-      case _ =>
-        "Cannot find good.".ioErrorE
+  def setPrice(goodEnum: GoodEnum, price: Price): Either[IOError, Warehouse] = {
+    goods.find(_.good == goodEnum.toString) match {
+      case Some(good) => Right(copy(goods = good.copy(price = Some(price)) :: goods.filter(_.good != goodEnum.toString)))
+      case _ => "Cannot find good.".ioErrorE
     }
   }
+
+  def getPrice(goodEnum: GoodEnum): Option[Price] =
+    goods.find(_.good == goodEnum.toString).flatMap(_.price)
+
+  def availableGoodNames: List[String] = goods.filter(good => good.qty > 0 && good.price.nonEmpty).map(_.good.toString)
 
   override def toString: String = {
-    goods.map(v => v._1 + "\t\t" + v._2).mkString("\n")
+    goods.map(v => v.good + "\t\t" + v.qty + "\t\t" + toString(v.price)).mkString("\n")
+  }
+
+  private def toString(price: Option[Price]): String = {
+    price.map(_.base.toString).getOrElse("-")
   }
 }
+
+case class Good(good: String, qty: Int, price: Option[Price])
+
+case class Price(base: BigDecimal)
 
 object WarehouseSerializer extends SimpleSerializer(classOf[Warehouse]) {
 

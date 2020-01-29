@@ -94,7 +94,7 @@
         "group": "game",
         "permissions": 664,
         "serializerName": "org.enricobn.buyandsell.content.Warehouse",
-        "ser": "{\"goods\":{\"gold\":2,\"silver\":10,\"bronze\":20}}"
+        "ser": "{\"goods\":[{\"good\":\"bronze\",\"qty\":20,\"price\":[{\"base\":\"50\"}]},{\"good\":\"silver\",\"qty\":10,\"price\":[{\"base\":\"300\"}]},{\"good\":\"gold\",\"qty\":5,\"price\":[{\"base\":\"1000\"}]}]}"
       },
       {
         "path": "/home/user2/User2City/warehouse",
@@ -102,15 +102,7 @@
         "group": "game",
         "permissions": 664,
         "serializerName": "org.enricobn.buyandsell.content.Warehouse",
-        "ser": "{\"goods\":{\"gold\":2,\"silver\":10,\"bronze\":20}}"
-      },
-      {
-        "path": "/home/enrico/Pisa/warehouse",
-        "owner": "enrico",
-        "group": "game",
-        "permissions": 664,
-        "serializerName": "org.enricobn.buyandsell.content.Warehouse",
-        "ser": "{\"goods\":{\"gold\":2,\"silver\":10,\"bronze\":20}}"
+        "ser": "{\"goods\":[{\"good\":\"bronze\",\"qty\":20,\"price\":[{\"base\":\"50\"}]},{\"good\":\"silver\",\"qty\":10,\"price\":[{\"base\":\"300\"}]},{\"good\":\"gold\",\"qty\":5,\"price\":[{\"base\":\"1000\"}]}]}"
       },
       {
         "path": "/etc/profile",
@@ -127,14 +119,6 @@
         "permissions": 664,
         "serializerName": "org.enricobn.shell.impl.StringList",
         "ser": "{\"value\":[\"createcity Pisa\"]}"
-      },
-      {
-        "path": "/home/enrico/market",
-        "owner": "enrico",
-        "group": "game",
-        "permissions": 664,
-        "serializerName": "org.enricobn.buyandsell.content.Market",
-        "ser": "{\"defaultPrices\":{\"gold\":\"1000\",\"silver\":\"300\",\"bronze\":\"50\"},\"entries\":{\"gold\":{\"qty\":6,\"price\":\"166.67\"},\"silver\":{\"qty\":30,\"price\":\"10.00\"},\"bronze\":{\"qty\":60,\"price\":\"0.83\"}}}"
       },
       {
         "path": "/home/user1/.profile",
@@ -169,12 +153,20 @@
         "ser": "{\"money\":\"10000\",\"availableCities\":2,\"cities\":[]}"
       },
       {
+        "path": "/home/enrico/Pisa/warehouse",
+        "owner": "enrico",
+        "group": "game",
+        "permissions": 664,
+        "serializerName": "org.enricobn.buyandsell.content.Warehouse",
+        "ser": "{\"goods\":[{\"good\":\"bronze\",\"qty\":20,\"price\":[{\"base\":\"50\"}]},{\"good\":\"silver\",\"qty\":10,\"price\":[{\"base\":\"300\"}]},{\"good\":\"gold\",\"qty\":5,\"price\":[{\"base\":\"1000\"}]}]}"
+      },
+      {
         "path": "/etc/passwd",
         "owner": "root",
         "group": "root",
         "permissions": 600,
         "serializerName": "org.enricobn.vfs.impl.Passwd",
-        "ser": "{\"users\":[{\"auth\":{\"id\":\"66031909-14a5-4f26-a1dd-e12c044b3de6\",\"user\":\"root\"},\"user\":\"root\",\"password\":\"90c854b4-acb9-42ec-b8f1-d762b5040de6\",\"group\":\"root\"},{\"auth\":{\"id\":\"c5b11873-040c-43a7-b894-a6ed9451df1a\",\"user\":\"enrico\"},\"user\":\"enrico\",\"password\":\"1edb7257-1d4e-4dee-ad2f-975eaac6e5e2\",\"group\":\"game\"},{\"auth\":{\"id\":\"093969ca-a350-4c4f-baee-715172ef928f\",\"user\":\"user1\"},\"user\":\"user1\",\"password\":\"12ec9de9-418f-4f05-9594-c383012ed819\",\"group\":\"game\"},{\"auth\":{\"id\":\"d01fb545-54cd-4fb3-bc27-16c7c4ee28ce\",\"user\":\"user2\"},\"user\":\"user2\",\"password\":\"e6e958ef-a282-47ed-be47-91cd0d01e155\",\"group\":\"game\"}]}"
+        "ser": "{\"users\":[{\"auth\":{\"id\":\"816c7ecd-b605-49c9-b194-f1397e954a19\",\"user\":\"root\"},\"user\":\"root\",\"password\":\"90116af5-0902-4931-baab-dce0633a9056\",\"group\":\"root\"},{\"auth\":{\"id\":\"45d84374-019f-4882-b47d-dc1076abf674\",\"user\":\"enrico\"},\"user\":\"enrico\",\"password\":\"97571146-2ab9-4639-9031-8018ead8bd55\",\"group\":\"game\"},{\"auth\":{\"id\":\"312a0d55-2c85-47c7-8951-fc8099568314\",\"user\":\"user1\"},\"user\":\"user1\",\"password\":\"d0925ad1-4b3e-4f7c-8bfd-0b33338406c7\",\"group\":\"game\"},{\"auth\":{\"id\":\"450bdb75-1583-45ac-b5a9-5c00b81558e3\",\"user\":\"user2\"},\"user\":\"user2\",\"password\":\"cc25aa9e-d0ca-49a9-b96e-f48197091785\",\"group\":\"game\"}]}"
       },
       {
         "path": "/home/enrico/.profile",

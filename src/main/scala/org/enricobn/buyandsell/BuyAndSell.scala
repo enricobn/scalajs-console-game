@@ -1,6 +1,6 @@
 package org.enricobn.buyandsell
 
-import org.enricobn.buyandsell.commands.{CreateCityCommand, MainLoopCommand, SellCommand}
+import org.enricobn.buyandsell.commands.{BuyCommand, CreateCityCommand, MainLoopCommand}
 import org.enricobn.buyandsell.content._
 import org.enricobn.buyandsell.content.externalserializers.PasswdSerializer
 import org.enricobn.consolegame.{BrowserConsoleGame, GameCommand, Serializer}
@@ -11,7 +11,7 @@ import org.enricobn.vfs.{Authentication, IOError}
 import scala.scalajs.js.annotation.{JSExportAll, JSExportTopLevel}
 
 object BuyAndSell {
-  val serializers: Seq[Serializer] = List(GameStatisticsSerializer, GameInfoSerializer, MarketSerializer,
+  val serializers: Seq[Serializer] = List(GameStatisticsSerializer, GameInfoSerializer,
     WarehouseSerializer, CityMapSerializer, PasswdSerializer)
 }
 
@@ -26,14 +26,6 @@ class BuyAndSell(mainCanvasID: String, messagesCanvasID: String, newGameID: Stri
     val gameStatistics = GameStatistics(money = 10000, availableCities = 2, cities = Set.empty)
 
     val job = for {
-      marketFileWithContent <- Market.get(shell)
-      _ <- marketFileWithContent.setContent(
-        new Market(
-          defaultPrices = Map(
-            "gold" -> 1000,
-            "silver" -> 300,
-            "bronze" -> 50),
-          entries = Map()))
       user1Shell <- createFakeUser("user1")
       _ <- user1Shell.run("createcity", "User1City")
       user2Shell <- createFakeUser("user2")
@@ -47,7 +39,7 @@ class BuyAndSell(mainCanvasID: String, messagesCanvasID: String, newGameID: Stri
   }
 
   override def commands: Either[IOError, Seq[GameCommand]] =
-    Right(Seq(GameCommand(SellCommand, visible = true), GameCommand(MainLoopCommand, visible = false),
+    Right(Seq(GameCommand(BuyCommand, visible = true), GameCommand(MainLoopCommand, visible = false),
       GameCommand(CreateCityCommand, visible = true)))
 
   override def getSerializers: Seq[Serializer] = BuyAndSell.serializers
