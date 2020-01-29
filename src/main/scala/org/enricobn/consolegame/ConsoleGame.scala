@@ -49,14 +49,14 @@ object ConsoleGame {
 
   val globalSerializers: Seq[Serializer] = List(MessagesSerializer, StringListSerializer, StringMapSerializer, GameInfoSerializer)
 
-  private[consolegame] def createMainShell(rootPassword: String, mainTerminal: Terminal): Either[IOError, VirtualShell] = {
+  private[consolegame] def createMainShell(rootPassword: String, mainTerminal: Terminal, scheduler: Scheduler): Either[IOError, VirtualShell] = {
     val _fs = InMemoryFS(
       {VirtualUsersManagerFileImpl(_, rootPassword).right.get},
       {(_, vum) => new VirtualSecurityManagerImpl(vum)})
     for {
       fs <- UnixLikeInMemoryFS(_fs, rootPassword)
       rootAuthentication <- fs.vum.logRoot(rootPassword)
-    } yield UnixLikeVirtualShell(fs, mainTerminal, fs.root, rootAuthentication)
+    } yield UnixLikeVirtualShell(fs, mainTerminal, fs.root, rootAuthentication, scheduler)
   }
 
   private def clearScreen(terminal: Terminal): Unit = {
@@ -70,7 +70,7 @@ object ConsoleGame {
   * Created by enrico on 12/8/16.
   */
 @JSExportAll
-abstract class ConsoleGame(mainTerminal: Terminal, messagesTerminal: Terminal, logger: JSLogger) {
+abstract class ConsoleGame(mainTerminal: Terminal, messagesTerminal: Terminal, logger: JSLogger, scheduler: Scheduler) {
 
   import org.enricobn.consolegame.ConsoleGame._
 
@@ -79,7 +79,7 @@ abstract class ConsoleGame(mainTerminal: Terminal, messagesTerminal: Terminal, l
   private var fs: UnixLikeInMemoryFS = _
   private var vum: VirtualUsersManager = _
   private var rootAuthentication: Authentication = _
-  protected var shell: VirtualShell = _
+  private[consolegame] var shell: VirtualShell = _
   private var messagesShell: VirtualShell = _
   private var userName: String = _
 
@@ -108,7 +108,8 @@ abstract class ConsoleGame(mainTerminal: Terminal, messagesTerminal: Terminal, l
 
   protected def createFakeUser(user: String): Either[IOError, VirtualShell] = {
     val userTerminal = new FakeTerminal
-    val userShell = UnixLikeVirtualShell(shell.fs.asInstanceOf[UnixLikeInMemoryFS], userTerminal, shell.fs.root, rootAuthentication)
+    val userShell = UnixLikeVirtualShell(shell.fs.asInstanceOf[UnixLikeInMemoryFS], userTerminal, shell.fs.root, rootAuthentication,
+      scheduler)
     val password = UUID.randomUUID().toString
 
     userTerminal.setShell(userShell)
@@ -125,11 +126,12 @@ abstract class ConsoleGame(mainTerminal: Terminal, messagesTerminal: Terminal, l
     mainTerminal.add("User name: ")
     mainTerminal.flush()
 
-    createMainShell(rootPassword, mainTerminal) match {
+    createMainShell(rootPassword, mainTerminal, scheduler) match {
       case Right(newMainShell) =>
         if (shell != null) {
           shell.stop(rootAuthentication)
         }
+
         // executeLater since newGame adds an input handler to the terminal, but since it runs inside another input handler
         // (created by the readLine) the one added goes after that and the enter key is processed!
         newMainShell.readLine { s => executeLater { () => newGame(s, newMainShell) } }
@@ -139,6 +141,7 @@ abstract class ConsoleGame(mainTerminal: Terminal, messagesTerminal: Terminal, l
   }
 
   private def newGame(newUserName: String, newMainShell: VirtualShell) {
+
     implicit val authentication: Authentication = newMainShell.authentication
     rootAuthentication = authentication
 
@@ -149,7 +152,7 @@ abstract class ConsoleGame(mainTerminal: Terminal, messagesTerminal: Terminal, l
       _ <- newFs.vum.addUser(newUserName, userPassword, group)
       _ <- ConsoleGame.initFS(newFs, newUserName, allCommands)
       userHome <- newMainShell.toFolder("/home/" + newUserName)
-      newMessagesShell = UnixLikeVirtualShell(newFs, messagesTerminal, newFs.root, rootAuthentication)
+      newMessagesShell = UnixLikeVirtualShell(newFs, messagesTerminal, newFs.root, rootAuthentication, scheduler)
       _ <- newMessagesShell.login(newUserName, userPassword)
       _ <- newMainShell.login(newUserName, userPassword)
     } yield {
@@ -250,7 +253,7 @@ abstract class ConsoleGame(mainTerminal: Terminal, messagesTerminal: Terminal, l
       newRootPassword = passwd.users.find(_.user == VirtualUsersManager.ROOT).get.password
       newUserPassword = passwd.users.find(_.user == serializedGame.userName).get.password
       newFs <- UnixLikeInMemoryFS(inMemoryFs, newRootPassword)
-      newShell = UnixLikeVirtualShell(newFs, mainTerminal, newFs.root, newRootAuthentication)
+      newShell = UnixLikeVirtualShell(newFs, mainTerminal, newFs.root, newRootAuthentication, scheduler)
       _ <- SerializedFSOperations.load(newShell, getSerializersMap, serializedGame.fs)(newRootAuthentication)
       _ <- ConsoleGame.initFS(newFs, serializedGame.userName, allCommands)(newRootAuthentication)
       _ <- newShell.login(serializedGame.userName, newUserPassword)
@@ -279,7 +282,7 @@ abstract class ConsoleGame(mainTerminal: Terminal, messagesTerminal: Terminal, l
           if (messagesShell != null) {
             messagesShell.stop(rootAuthentication)
           }
-          messagesShell = UnixLikeVirtualShell(newFs, messagesTerminal, homeFolder, newRootAuthentication)
+          messagesShell = UnixLikeVirtualShell(newFs, messagesTerminal, homeFolder, newRootAuthentication, scheduler)
 
           // TODO Error
           messagesShell.login(newUserName, userPassword)

@@ -1,6 +1,7 @@
 package org.enricobn.consolegame
 
 import org.enricobn.consolegame.BrowserConsoleGame._
+import org.enricobn.shell.impl.RequestAnimationFrameScheduler
 import org.enricobn.terminal.{CanvasInputHandler, CanvasTextScreen, JSLoggerImpl, TerminalImpl}
 import org.scalajs.dom
 import org.scalajs.dom.FileReader
@@ -19,7 +20,7 @@ abstract class BrowserConsoleGame(mainCanvasID: String, messagesCanvasID: String
   extends ConsoleGame(new TerminalImpl(new CanvasTextScreen(mainCanvasID, logger), new CanvasInputHandler(mainCanvasID),
     logger, typeWriterSound),
     new TerminalImpl(new CanvasTextScreen(messagesCanvasID, logger), new CanvasInputHandler(messagesCanvasID), logger, typeWriterSound),
-    logger) {
+    logger, new RequestAnimationFrameScheduler()) {
 
   private val newGameButton = dom.document.getElementById(newGameID).asInstanceOf[Button]
   private val loadGame = dom.document.getElementById(loadGameID).asInstanceOf[Input]
