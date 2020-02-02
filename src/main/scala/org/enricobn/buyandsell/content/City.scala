@@ -14,8 +14,8 @@ object City {
     implicit val authentication: Authentication = shell.authentication
 
     for {
-      path <- VirtualPath.of("home", user, cityName)
-      cityFile <- shell.fs.root.resolveFileOrError(path)
+      path <- VirtualPath.absolute("home", user, cityName)
+      cityFile <- path.toFile(shell.fs)
       city <- cityFile.contentAs(classOf[City])
     } yield city
   }
@@ -24,7 +24,7 @@ object City {
     implicit val authentication: Authentication = shell.authentication
 
     for {
-      cityFile <- shell.currentFolder.findFileOrError(fileName, "this is not a city.")
+      cityFile <- shell.currentFolder.findFileOrError(fileName)
       city <- cityFile.contentAs(classOf[City])
     } yield city
   }

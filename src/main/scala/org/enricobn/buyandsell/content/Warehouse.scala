@@ -6,7 +6,7 @@ import org.enricobn.consolegame.content.SimpleSerializer
 import org.enricobn.shell.impl.VirtualShell
 import org.enricobn.vfs.IOError._
 import org.enricobn.vfs.utils.Utils.RightBiasedEither
-import org.enricobn.vfs.{Authentication, IOError}
+import org.enricobn.vfs.{Authentication, IOError, VirtualPath}
 
 object Warehouse {
 
@@ -15,7 +15,8 @@ object Warehouse {
 
     for {
       home <- shell.homeFolder
-      warehouseFile <- home.resolveFileOrError(List(cityName, "warehouse"))
+      path <- VirtualPath.relative(cityName, "warehouse")
+      warehouseFile <- path.toFile(home)
       warehouse <- warehouseFile.contentAs(classOf[Warehouse])
     } yield warehouse
   }

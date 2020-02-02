@@ -1,9 +1,9 @@
 package org.enricobn.consolegame
 
 import org.enricobn.shell.impl.VirtualShell
-import org.enricobn.vfs.IOError._
 import org.enricobn.vfs._
 import org.enricobn.vfs.utils.Utils
+import org.enricobn.vfs.utils.Utils.RightBiasedEither
 
 object SerializedFSOperations {
 
@@ -11,7 +11,7 @@ object SerializedFSOperations {
     * Loads the given serializedFS using the given shell.
     */
   def load(shell: VirtualShell, serializers: Map[String, Serializer], serializedFS: SerializedFS)
-          (implicit authentication: Authentication) : Either[IOError, Unit] =
+          (implicit authentication: Authentication): Either[IOError, Unit] =
     for {
       // I sort them so I create them in order
       _ <- Utils.lift(serializedFS.folders.sortBy(_.path).map(serializedFolder => {
@@ -31,19 +31,19 @@ object SerializedFSOperations {
       })).right
       serializedAndSerializerAndContent <- {
         val ssc = serializedAndSerializers.map { case (serializedFile, serializer) =>
-          val path = VirtualPath(serializedFile.path)
-
           for {
-            parentFolder <- shell.toFolder(path.parentFragments.get.path).right
-            foundFile <- parentFolder.findFile(path.name).right
+            path <- VirtualPath.of(serializedFile.path)
+            parentPath <- path.parentOrError
+            parentFolder <- parentPath.toFolder(shell.currentFolder)
+            foundFile <- parentFolder.findFile(path.name)
             file <- if (foundFile.isDefined) {
-                      Right(foundFile.get).right
-                    } else {
-                      parentFolder.touch(path.name).right
-                    }
-            _ <- file.chown(serializedFile.owner).right
-            _ <- file.chgrp(serializedFile.group).right
-            _ <- file.chmod(serializedFile.permissions).right
+              Right(foundFile.get)
+            } else {
+              parentFolder.touch(path.name)
+            }
+            _ <- file.chown(serializedFile.owner)
+            _ <- file.chgrp(serializedFile.group)
+            _ <- file.chmod(serializedFile.permissions)
           } yield fileSerializerDeSerialized(serializedFile, serializer)
         }
 
@@ -54,7 +54,7 @@ object SerializedFSOperations {
 
         result.right
       }
-      contentFiles <- Utils.liftTuple(serializedAndSerializerAndContent.map {case ((serializedFile, _), content) =>
+      contentFiles <- Utils.liftTuple(serializedAndSerializerAndContent.map { case ((serializedFile, _), content) =>
         (content, shell.toFile(serializedFile.path))
       }).right
       _ <- Utils.lift(contentFiles.map { case (content, file) => file.setContent(content) }).right
@@ -73,7 +73,9 @@ object SerializedFSOperations {
       fileContents <- Utils.liftTuple(
         files.map(file => (file, file.getContent))
       ).right
-      fileContentSerializers <- Right(Utils.allSome(fileContents.map { fileContentSerializer(_, serializers)})).right
+      fileContentSerializers <- Right(Utils.allSome(fileContents.map {
+        fileContentSerializer(_, serializers)
+      })).right
       serializedContents <- Utils.liftTuple(
         fileContentSerializers.map { case ((file, content), serializer) => ((file, serializer), serializer.serialize(content))
         }).right
@@ -86,7 +88,7 @@ object SerializedFSOperations {
     }
 
   private def fileSerializerDeSerialized(serializedFile: SerializedFile, serializer: Serializer):
-        ((SerializedFile, Serializer), Either[IOError, AnyRef]) =
+  ((SerializedFile, Serializer), Either[IOError, AnyRef]) =
     ((serializedFile, serializer), serializer.deserialize(serializedFile.ser))
 
   private def fileContentSerializer(fileContent: (VirtualFile, AnyRef), serializers: Map[String, Serializer]) = {
@@ -100,21 +102,17 @@ object SerializedFSOperations {
     ((file, content), maybeSerializer)
   }
 
-  private def mkdir(shell:VirtualShell, path: String)(implicit authentication: Authentication) : Either[IOError, VirtualFolder] = {
-    val virtualPath = VirtualPath(path)
-
-    val parentPath = virtualPath.parentFragments.get.path
-
-    shell.toFolder(parentPath) match {
-      case Left(error) => s"Cannot make directory $path, cannot find $parentPath : ${error.message}".ioErrorE
-      case Right(parent) =>
-        parent.findFolder(virtualPath.name) match {
-          case Right(Some(folder)) => Right(folder)
-          case Right(None) => parent.mkdir(virtualPath.name)
-          case Left(error) => Left(error)
-        }
-
-    }
+  private def mkdir(shell: VirtualShell, path: String)(implicit authentication: Authentication): Either[IOError, VirtualFolder] = {
+    for {
+      virtualPath <- VirtualPath.of(path)
+      parentPath <- virtualPath.parentOrError
+      parent <- shell.toFolder(parentPath.toString)
+      result <- parent.findFolder(virtualPath.name) match {
+        case Right(Some(folder)) => Right(folder)
+        case Right(None) => parent.mkdir(virtualPath.name)
+        case Left(error) => Left(error)
+      }
+    } yield result
   }
 
 }

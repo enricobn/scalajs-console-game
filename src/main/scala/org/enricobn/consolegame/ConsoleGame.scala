@@ -202,7 +202,7 @@ abstract class ConsoleGame(mainTerminal: Terminal, messagesTerminal: Terminal, l
       privateCommands = allCommands.filter(!_.visible).map(_.virtualCommand)
       _ <- Right(for (command <- privateCommands) yield {
         for {
-          file <- fs.usrBin.resolveFileOrError(command.name)
+          file <- fs.usrBin.findFileOrError(command.name)
           _ <- file.setPermissions(privatePermission)
         } yield ()
       })

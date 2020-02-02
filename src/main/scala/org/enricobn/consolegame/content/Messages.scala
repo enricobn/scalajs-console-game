@@ -3,7 +3,8 @@ package org.enricobn.consolegame.content
 import org.enricobn.consolegame.UpickleUtils
 import org.enricobn.shell.impl.VirtualShell
 import org.enricobn.terminal.Terminal
-import org.enricobn.vfs.{Authentication, IOError, VirtualFile}
+import org.enricobn.vfs.utils.Utils.RightBiasedEither
+import org.enricobn.vfs.{Authentication, IOError, VirtualFile, VirtualPath}
 
 /**
   * Created by enrico on 12/25/16.
@@ -22,14 +23,15 @@ object Messages {
   def getMessagesFile(shell: VirtualShell) : Either[IOError, VirtualFile] = {
     implicit val authentication: Authentication = shell.authentication
 
-    shell.fs.root.resolveFileOrError(List("var", "log", "messages.log"))
+    VirtualPath.absolute("var", "log", "messages.log").right.flatMap(_.toFile(shell.fs))
   }
 
   def addMessage(shell: VirtualShell, message: String) : Either[IOError, Unit] = {
     implicit val authentication: Authentication = shell.authentication
 
     val runAddMessage = for {
-      messagesFile <- shell.fs.root.resolveFileOrError(List("var", "log", "messages.log")).right
+      path <- VirtualPath.absolute("var", "log", "messages.log")
+      messagesFile <- path.toFile(shell.fs)
       messages <- messagesFile.contentAs(classOf[Messages]).right
       newMessages <- Right(messages.add(message)).right
       result <- messagesFile.setContent(newMessages).right
