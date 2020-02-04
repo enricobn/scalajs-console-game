@@ -23,6 +23,7 @@ import scala.language.reflectiveCalls
 
 object ConsoleGame {
   private val group = "game"
+
   // TODO move in VirtualFile?
   private def delete(file: VirtualFile)(implicit authentication: Authentication): Either[IOError, Unit] =
     file.parent match {
@@ -51,8 +52,10 @@ object ConsoleGame {
 
   private[consolegame] def createMainShell(rootPassword: String, mainTerminal: Terminal, scheduler: Scheduler): Either[IOError, VirtualShell] = {
     val _fs = InMemoryFS(
-      {VirtualUsersManagerFileImpl(_, rootPassword).right.get},
-      {(_, vum) => new VirtualSecurityManagerImpl(vum)})
+      {
+        VirtualUsersManagerFileImpl(_, rootPassword).right.get
+      },
+      { (_, vum) => new VirtualSecurityManagerImpl(vum) })
     for {
       fs <- UnixLikeInMemoryFS(_fs, rootPassword)
       rootAuthentication <- fs.vum.logRoot(rootPassword)
@@ -102,9 +105,9 @@ abstract class ConsoleGame(mainTerminal: Terminal, messagesTerminal: Terminal, l
 
   def executeLater(runnable: () => Unit): Unit
 
-  def showError(message: String) : Unit
+  def showError(message: String): Unit
 
-  def saveToFile(content: String, fileName: String) : Unit
+  def saveToFile(content: String, fileName: String): Unit
 
   protected def createFakeUser(user: String): Either[IOError, VirtualShell] = {
     val userTerminal = new FakeTerminal
@@ -115,8 +118,8 @@ abstract class ConsoleGame(mainTerminal: Terminal, messagesTerminal: Terminal, l
     userTerminal.setShell(userShell)
 
     for {
-                                       _ <- shell.vum.addUser(user, password, group)(rootAuthentication).right
-                                         _ <- userShell.login(user, password).right
+      _ <- shell.vum.addUser(user, password, group)(rootAuthentication).right
+      _ <- userShell.login(user, password).right
     } yield userShell
   }
 
@@ -246,7 +249,7 @@ abstract class ConsoleGame(mainTerminal: Terminal, messagesTerminal: Terminal, l
     val run = for {
       serializedGame <- UpickleUtils.readE[SerializedGame](resultContent)
       passwd <- serializedGame.fs.files.find(_.path == "/etc/passwd").toRight(IOError("cannot find passwd file"))
-        .flatMap( content => PasswdSerializer.deserialize(content.ser))
+        .flatMap(content => PasswdSerializer.deserialize(content.ser))
       inMemoryFs = InMemoryFS(fs => VirtualUsersManagerFileImpl(fs, passwd).right.get,
         (_, vum) => new VirtualSecurityManagerImpl(vum))
       newRootAuthentication = passwd.users.find(_.user == VirtualUsersManager.ROOT).get.auth

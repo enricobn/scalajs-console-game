@@ -2,7 +2,7 @@ package org.enricobn.consolegame
 
 import org.enricobn.consolegame.BrowserConsoleGame._
 import org.enricobn.shell.impl.RequestAnimationFrameScheduler
-import org.enricobn.terminal.{CanvasInputHandler, CanvasTextScreen, JSLoggerImpl, TerminalImpl}
+import org.enricobn.terminal._
 import org.scalajs.dom
 import org.scalajs.dom.FileReader
 import org.scalajs.dom.html.{Anchor, Button, Canvas, Input}
@@ -13,13 +13,20 @@ import scala.scalajs.js
 object BrowserConsoleGame {
   val logger = new JSLoggerImpl()
   val typeWriterSound = "typewriter-key-1.wav"
+
+  val colors = new TermColors()
+
+  colors.set(ColorEnum.blue, "#6060ff")
+  colors.set(ColorEnum.green, "#00ee00")
+  colors.set(ColorEnum.white, "#d0d0d0")
+  colors.set(ColorEnum.black, "#131926")
 }
 
 abstract class BrowserConsoleGame(mainCanvasID: String, messagesCanvasID: String, newGameID: String, loadGameID: String,
                                   saveGameID: String)
   extends ConsoleGame(new TerminalImpl(new CanvasTextScreen(mainCanvasID, logger), new CanvasInputHandler(mainCanvasID),
-    logger, typeWriterSound),
-    new TerminalImpl(new CanvasTextScreen(messagesCanvasID, logger), new CanvasInputHandler(messagesCanvasID), logger, typeWriterSound),
+    logger, typeWriterSound, BrowserConsoleGame.colors),
+    new TerminalImpl(new CanvasTextScreen(messagesCanvasID, logger), new CanvasInputHandler(messagesCanvasID), logger, typeWriterSound, BrowserConsoleGame.colors),
     logger, new RequestAnimationFrameScheduler()) {
 
   private val newGameButton = dom.document.getElementById(newGameID).asInstanceOf[Button]
@@ -27,11 +34,12 @@ abstract class BrowserConsoleGame(mainCanvasID: String, messagesCanvasID: String
   private val saveGameAnchor = dom.document.getElementById(saveGameID).asInstanceOf[Anchor]
   private val mainCanvas = dom.document.getElementById(mainCanvasID).asInstanceOf[Canvas]
 
-  newGameButton.onclick = { _ : MouseEvent => {
+  newGameButton.onclick = { _: MouseEvent => {
     mainCanvas.contentEditable = "true"
     mainCanvas.focus()
     onNewGame()
-  }}
+  }
+  }
 
   loadGame.addEventListener("change", readGame(loadGame) _, useCapture = false)
 
