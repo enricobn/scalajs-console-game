@@ -1,7 +1,6 @@
-package org.enricobn.buyandsell.content.externalserializers
+package org.enricobn.consolegame.content
 
 import org.enricobn.consolegame.UpickleUtils
-import org.enricobn.consolegame.content.SimpleSerializer
 import org.enricobn.vfs.IOError
 import org.enricobn.vfs.impl.Passwd
 

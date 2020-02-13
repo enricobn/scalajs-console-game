@@ -2,10 +2,9 @@ package org.enricobn.consolegame
 
 import java.util.UUID
 
-import org.enricobn.buyandsell.content.externalserializers.PasswdSerializer
 import org.enricobn.buyandsell.content.{GameInfo, GameInfoSerializer}
 import org.enricobn.consolegame.commands.MessagesCommand
-import org.enricobn.consolegame.content.{Messages, MessagesSerializer, SimpleSerializer}
+import org.enricobn.consolegame.content.{Messages, MessagesSerializer, PasswdSerializer, SimpleSerializer}
 import org.enricobn.shell.VirtualCommandOperations
 import org.enricobn.shell.impl._
 import org.enricobn.terminal._
@@ -38,17 +37,19 @@ object ConsoleGame {
       userCommands <- allCommands
       _ <- VirtualCommandOperations.createCommandFiles(fs.usrBin, userCommands.map(_.virtualCommand): _*)
       messagesLog <- fs.varLog.findFile("messages.log")
-      messagesFile <- if (messagesLog.isDefined) {
-        Right(messagesLog.get)
-      } else {
-        fs.varLog.createFile("messages.log", Messages(Seq.empty))
-      }
+      messagesFile <-
+        if (messagesLog.isDefined) {
+          Right(messagesLog.get)
+        } else {
+          fs.varLog.createFile("messages.log", Messages(Seq.empty))
+        }
       _ <- messagesFile.chown(userName)
       gameInfo <- GameInfo.get(fs)
       _ <- gameInfo.setContent(GameInfo(userName))
     } yield ()
 
-  val globalSerializers: Seq[Serializer] = List(MessagesSerializer, StringListSerializer, StringMapSerializer, GameInfoSerializer)
+  val globalSerializers: Seq[Serializer] = List(MessagesSerializer, StringListSerializer, StringMapSerializer,
+    GameInfoSerializer, PasswdSerializer)
 
   private[consolegame] def createMainShell(rootPassword: String, mainTerminal: Terminal, scheduler: Scheduler): Either[IOError, VirtualShell] = {
     val _fs = InMemoryFS(

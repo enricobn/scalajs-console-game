@@ -1,9 +1,9 @@
 DOING
 ------
-- test ConsoleGame
 
 NEXT
 -----
+- move PasswdSerializer to scalajs-vfs
 - remove Ctr-C handling in MessagesCommand and move it to VirtualProcess
 - it's more an issue in vfs: a file with no read permission is still visible! Look at message command and main loop command
 - can I move SerializedFS and SerializedFSOperations in scalajs-vfs?
