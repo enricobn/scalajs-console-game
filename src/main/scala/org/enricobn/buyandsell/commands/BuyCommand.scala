@@ -14,7 +14,9 @@ import scala.util.{Failure, Success, Try}
   */
 private object BuyCommandArguments {
 
-  val FROM = FileArgument("from warehouse", required = true, (folder, shell) => getWarehouseFile(folder)(shell.authentication).isDefined)
+  val FROM = FileArgument("from warehouse", required = true,
+    (folder, shell) => getWarehouseFile(folder)(shell.authentication).isDefined
+  )
 
   val GOOD: StringArgument = new StringArgument("good", required = true) {
     override def complete(shell: VirtualShell, value: String, previousArguments: Seq[Any]): Seq[String] =
@@ -23,7 +25,9 @@ private object BuyCommandArguments {
 
   val QTY = IntArgument("qty", required = true)
 
-  val TO = FileArgument("to warehouse", required = true, (folder, shell) => getWarehouseFile(folder)(shell.authentication).isDefined)
+  val TO = FileArgument("to warehouse", required = true,
+    (folder, shell) => getWarehouseFile(folder)(shell.authentication).isDefined
+  )
 
   def goodsProposals(file: VirtualFile, prefix: String)(implicit authentication: Authentication) : Seq[String] = {
     getWarehouseFile(file) match {
@@ -54,12 +58,13 @@ object BuyCommand extends VirtualCommandAbstract("buy", FROM, GOOD, QTY, TO) {
       for {
         fromWarehouse <- from.contentAs(classOf[Warehouse])
         toWarehouse <- to.contentAs(classOf[Warehouse])
-        gamestatsFile <- GameStatistics.get(shell)
-        price <- fromWarehouse.getPrice(GoodEnum.withName(good))
-        newFromWarehouse <- fromWarehouse.change(GoodEnum.withName(good), -qty)
-        newToWarehouse <- toWarehouse.change(GoodEnum.withName(good), qty)
+        gameStatsFile <- GameStatistics.get(shell)
+        goodEnum <- GoodEnum.withNameE(good)
+        price <- fromWarehouse.getPrice(goodEnum)
+        newFromWarehouse <- fromWarehouse.change(goodEnum, -qty)
+        newToWarehouse <- toWarehouse.change(goodEnum, qty)
         _ <- from.setContent(newFromWarehouse)
-        _ <- gamestatsFile.mapContent(_.add(-price.base * qty))
+        _ <- gameStatsFile.mapContent(_.add(-price.base * qty))
         _ <- to.setContent(newToWarehouse)
         _ <- Messages.addMessage(shell, "buy " + qty + " of " + good)
       } yield new VirtualProcess()
