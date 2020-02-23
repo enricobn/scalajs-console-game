@@ -1,5 +1,6 @@
 package org.enricobn.buyandsell.commands
 
+import org.enricobn.buyandsell.content.EitherEnumeration.EitherEnumeration
 import org.enricobn.buyandsell.content.{GameStatistics, GoodEnum, Warehouse}
 import org.enricobn.consolegame.content.Messages
 import org.enricobn.shell._
