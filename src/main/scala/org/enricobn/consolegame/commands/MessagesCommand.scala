@@ -64,7 +64,7 @@ class MessagesCommand() extends VirtualCommand {
 
   }
 
-  override def completion(line: String, shell: VirtualShell): Seq[String] = {
+  override def completion(line: String, shell: VirtualShell): Seq[Completion] = {
     Seq.empty
   }
 

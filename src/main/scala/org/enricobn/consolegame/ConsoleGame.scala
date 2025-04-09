@@ -1,7 +1,5 @@
 package org.enricobn.consolegame
 
-import java.util.UUID
-
 import org.enricobn.buyandsell.content.{GameInfo, GameInfoSerializer}
 import org.enricobn.consolegame.commands.MessagesCommand
 import org.enricobn.consolegame.content.{Messages, MessagesSerializer, PasswdSerializer, SimpleSerializer}
@@ -13,6 +11,7 @@ import org.enricobn.vfs.impl.{VirtualSecurityManagerImpl, VirtualUsersManagerFil
 import org.enricobn.vfs.inmemory.InMemoryFS
 import org.enricobn.vfs.utils.Utils.RightBiasedEither
 
+import java.util.UUID
 import scala.scalajs.js.annotation.JSExportAll
 
 // to access members of structural types (new {}) without warnings
@@ -110,7 +109,7 @@ abstract class ConsoleGame(mainTerminal: Terminal, messagesTerminal: Terminal, l
 
   def saveToFile(content: String, fileName: String): Unit
 
-  protected def createFakeUser(user: String): Either[IOError, VirtualShell] = {
+  protected def createUserWithRandomPassword(user: String): Either[IOError, VirtualShell] = {
     val userTerminal = new FakeTerminal
     val userShell = UnixLikeVirtualShell(shell.fs.asInstanceOf[UnixLikeInMemoryFS], userTerminal, shell.fs.root, rootAuthentication,
       scheduler)

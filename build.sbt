@@ -32,6 +32,15 @@ lazy val root = (project in file("."))
     // -o causes test results to be written back to sbt, which usually displays it on the standard output
     // -F show full stack traces
     testOptions in Test += Tests.Argument("-oF")
+      /*
+    jsEnv := PhantomJSEnv().value
+      /*
+        scalaJSLinkerConfig ~= { _.withESFeatures(_.withUseECMAScript2015(false)) }
+
+       */
+
+       */
   )
+  //.enablePlugins(JSDependenciesPlugin)
   .enablePlugins(ScalaJSPlugin)
-    
+

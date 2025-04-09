@@ -20,7 +20,7 @@ private object BuyCommandArguments {
   )
 
   val GOOD: StringArgument = new StringArgument("good", required = true) {
-    override def complete(shell: VirtualShell, value: String, previousArguments: Seq[Any]): Seq[String] =
+    override def complete(shell: VirtualShell, value: String, previousArguments: Seq[Any]): Seq[Completion] =
       goodsProposals(previousArguments.head.asInstanceOf[VirtualFile], value)(shell.authentication)
   }
 
@@ -30,9 +30,9 @@ private object BuyCommandArguments {
     (folder, shell) => getWarehouseFile(folder)(shell.authentication).isDefined
   )
 
-  def goodsProposals(file: VirtualFile, prefix: String)(implicit authentication: Authentication) : Seq[String] = {
+  def goodsProposals(file: VirtualFile, prefix: String)(implicit authentication: Authentication) : Seq[Completion] = {
     getWarehouseFile(file) match {
-      case Some(warehouse) => warehouse.availableGoodNames.filter(_.startsWith(prefix))
+      case Some(warehouse) => warehouse.availableGoodNames.filter(_.startsWith(prefix)).map(name => Completion(name, name))
       case _ => Seq.empty
     }
   }

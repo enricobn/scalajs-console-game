@@ -1,8 +1,8 @@
 package org.enricobn.buyandsell.content
 
 import org.enricobn.buyandsell.commands.BuyCommand
-import org.enricobn.shell.VirtualCommand
 import org.enricobn.shell.impl.{VirtualShellContextImpl, VirtualShellImpl}
+import org.enricobn.shell.{Completion, VirtualCommand}
 import org.enricobn.terminal.Terminal
 import org.enricobn.vfs.impl.{VirtualSecurityManagerImpl, VirtualUsersManagerFileImpl}
 import org.enricobn.vfs.inmemory.InMemoryFS
@@ -56,6 +56,6 @@ class BuyCommandSpec extends FlatSpec with MockFactory with Matchers {
 
     val result = f.command.completion("buy ../user1", f.shell)
 
-    assert(result == List("../user1/city1/"))
+    assert(result == List(Completion("../user1/city1/", "city1/")))
   }
 }

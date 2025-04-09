@@ -1,6 +1,6 @@
 DEVELOP
 =======
-you can run 'sbt ~fastOptJS' to fast compile and recompile on changes
+you can run `sbt ~fastOptJS` to fast compile and recompile on changes
 then open index_develop.html
 
 TEST

@@ -25,9 +25,9 @@ class BuyAndSell(mainCanvasID: String, messagesCanvasID: String, newGameID: Stri
     val gameStatistics = GameStatistics(money = 10000, availableCities = 2, cities = Set.empty)
 
     val job = for {
-      user1Shell <- createFakeUser("user1")
+      user1Shell <- createUserWithRandomPassword("user1")
       _ <- user1Shell.run("createcity", "User1City")
-      user2Shell <- createFakeUser("user2")
+      user2Shell <- createUserWithRandomPassword("user2")
       _ <- user2Shell.run("createcity", "User2City")
 
       home <- shell.homeFolder

@@ -2,7 +2,7 @@ package org.enricobn.buyandsell.commands
 
 import org.enricobn.buyandsell.content._
 import org.enricobn.shell.impl.{StringArgument, VirtualCommandAbstract, VirtualShell}
-import org.enricobn.shell.{ShellInput, ShellOutput, VirtualProcess}
+import org.enricobn.shell.{Completion, ShellInput, ShellOutput, VirtualProcess}
 import org.enricobn.vfs.{Authentication, IOError}
 
 object CreateCityCommand extends VirtualCommandAbstract("createcity", StringArgument("name", required = true)) {
@@ -32,7 +32,7 @@ object CreateCityCommand extends VirtualCommandAbstract("createcity", StringArgu
     } yield new VirtualProcess()
   }
 
-  override def completion(line: String, shell: VirtualShell): Seq[String] = Seq.empty
+  override def completion(line: String, shell: VirtualShell): Seq[Completion] = Seq.empty
 
 }
 

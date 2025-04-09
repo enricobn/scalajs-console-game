@@ -1,7 +1,7 @@
 package org.enricobn.buyandsell.commands
 
 import org.enricobn.shell.impl.VirtualShell
-import org.enricobn.shell.{ShellInput, ShellOutput, VirtualCommand, VirtualProcess}
+import org.enricobn.shell._
 import org.enricobn.vfs.IOError
 
 // TODO it's an example
@@ -17,5 +17,5 @@ object MainLoopCommand extends VirtualCommand {
       override def running: Boolean = true
     })
 
-  override def completion(line: String, shell: VirtualShell): Seq[String] = Seq.empty
+  override def completion(line: String, shell: VirtualShell): Seq[Completion] = Seq.empty
 }
