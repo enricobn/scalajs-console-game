@@ -1,7 +1,7 @@
 package org.enricobn.buyandsell.content
 
 import org.enricobn.buyandsell.commands.BuyCommand
-import org.enricobn.shell.impl.{VirtualShellContextImpl, VirtualShellImpl}
+import org.enricobn.shell.impl.{VirtualShell, VirtualShellContextImpl, VirtualShellImpl}
 import org.enricobn.shell.{Completion, VirtualCommand}
 import org.enricobn.terminal.Terminal
 import org.enricobn.vfs.impl.{VirtualSecurityManagerImpl, VirtualUsersManagerFileImpl}
@@ -10,6 +10,8 @@ import org.enricobn.vfs.utils.Utils.RightBiasedEither
 import org.enricobn.vfs.{Authentication, VirtualFolder}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.{FlatSpec, Matchers}
+
+import scala.language.reflectiveCalls
 
 class BuyCommandSpec extends FlatSpec with MockFactory with Matchers {
 
@@ -29,7 +31,7 @@ class BuyCommandSpec extends FlatSpec with MockFactory with Matchers {
     new {
       val command: VirtualCommand = BuyCommand
       val guestFolder: VirtualFolder = _guest
-      val shell = new VirtualShellImpl(fs, stub[Terminal], fs.vum, fs.vsm, new VirtualShellContextImpl(), guestFolder,
+      val shell: VirtualShell = new VirtualShellImpl(fs, stub[Terminal], fs.vum, fs.vsm, new VirtualShellContextImpl(), guestFolder,
         authentication)
     }
   }

@@ -15,7 +15,7 @@ import scala.util.{Failure, Success, Try}
   */
 private object BuyCommandArguments {
 
-  val FROM = FileArgument("'from warehouse'", required = true,
+  val FROM: FileArgument = FileArgument("'from warehouse'", required = true,
     (folder, shell) => getWarehouseFile(folder)(shell.authentication).isDefined
   )
 
@@ -24,9 +24,9 @@ private object BuyCommandArguments {
       goodsProposals(previousArguments.head.asInstanceOf[VirtualFile], value)(shell.authentication)
   }
 
-  val QTY = IntArgument("quantity", required = true)
+  val QTY: IntArgument = IntArgument("quantity", required = true)
 
-  val TO = FileArgument("'to warehouse'", required = true,
+  val TO: FileArgument = FileArgument("'to warehouse'", required = true,
     (folder, shell) => getWarehouseFile(folder)(shell.authentication).isDefined
   )
 

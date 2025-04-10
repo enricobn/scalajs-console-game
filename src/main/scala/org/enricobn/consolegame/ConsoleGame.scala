@@ -123,7 +123,7 @@ abstract class ConsoleGame(mainTerminal: Terminal, messagesTerminal: Terminal, l
     } yield userShell
   }
 
-  private[consolegame] def onNewGame() {
+  private[consolegame] def onNewGame(): Unit = {
     clearScreen(mainTerminal)
 
     mainTerminal.add("User name: ")
@@ -143,7 +143,7 @@ abstract class ConsoleGame(mainTerminal: Terminal, messagesTerminal: Terminal, l
 
   }
 
-  private def newGame(newUserName: String, newMainShell: VirtualShell) {
+  private def newGame(newUserName: String, newMainShell: VirtualShell): Unit = {
 
     implicit val authentication: Authentication = newMainShell.authentication
     rootAuthentication = authentication
