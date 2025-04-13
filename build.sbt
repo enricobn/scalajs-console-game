@@ -1,6 +1,6 @@
-import sbt.Keys._
+import sbt.Keys.*
 
-scalaVersion in ThisBuild := "2.11.8"
+ThisBuild / scalaVersion := "2.13.16"
 
 val project_name = "scalajs-console-game"
 val project_version = "1.0.0-SNAPSHOT"
@@ -14,33 +14,16 @@ lazy val root = (project in file("."))
     organization := "org.enricobn",
     name := project_name,
     version := project_version,
-    artifactPath in(Compile, fullOptJS) := baseDirectory.value / (artifactPrefix + ".min.js"),
-    artifactPath in(Compile, packageJSDependencies) := baseDirectory.value / (artifactPrefix + "-jsdeps.js"),
-    artifactPath in(Compile, packageMinifiedJSDependencies) := baseDirectory.value / (artifactPrefix + "-jsdeps.min.js"),
-    //    libraryDependencies += "org.scala-js" %%% "scalajs-dom" % "0.9.1",
     libraryDependencies += "org.enricobn" %%% "scalajs-shell" % "1.0.0-SNAPSHOT" changing(),
-    libraryDependencies += "com.lihaoyi" %%% "upickle" % "0.4.3",
+    libraryDependencies += "com.lihaoyi" %%% "upickle" % "4.1.0",
+    libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.19" % Test,
+    libraryDependencies += "org.scalamock" %%% "scalamock" % "7.3.0" % Test
 
-    //  libraryDependencies ++= Seq("org.scala-lang" % "scala-reflect" % "2.11.8"),
-    // TEST
-    //libraryDependencies += "com.lihaoyi" %%% "utest" % "0.6.3" % Test,
-    libraryDependencies += "org.scalamock" %%% "scalamock" % "4.1.0" % Test,
-    libraryDependencies += "org.scalatest" %%% "scalatest" % "3.0.4" % Test,
-    //testFrameworks += new TestFramework("utest.runner.Framework"),
-    //scalaJSUseMainModuleInitializer := true,
-
-    // -o causes test results to be written back to sbt, which usually displays it on the standard output
-    // -F show full stack traces
-    testOptions in Test += Tests.Argument("-oF")
-      /*
-    jsEnv := PhantomJSEnv().value
-      /*
-        scalaJSLinkerConfig ~= { _.withESFeatures(_.withUseECMAScript2015(false)) }
-
-       */
-
-       */
   )
-  //.enablePlugins(JSDependenciesPlugin)
   .enablePlugins(ScalaJSPlugin)
+
+scalacOptions ++= Seq(
+  "-Xsource:3",
+  "-deprecation"
+)
 

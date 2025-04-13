@@ -4,8 +4,9 @@ import org.enricobn.consolegame.ConsoleGameSpec.scheduler
 import org.enricobn.shell.impl.{Scheduler, UnixLikeInMemoryFS, VirtualShell}
 import org.enricobn.terminal.{JSLogger, Terminal}
 import org.enricobn.vfs.IOError
+import org.scalamock.matchers.Matchers
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
 
 object ConsoleGameSpec {
   private val scheduler = new Scheduler {
@@ -13,19 +14,19 @@ object ConsoleGameSpec {
   }
 }
 
-class ConsoleGameSpec extends FlatSpec with MockFactory with Matchers {
+class ConsoleGameSpec extends AnyFlatSpec with MockFactory with Matchers {
 
   "createMainShell" should "log with root" in {
     val mainTerminal = mock[Terminal]
 
-    val shell = ConsoleGame.createMainShell("root", mainTerminal, scheduler).right.get
+    val shell = ConsoleGame.createMainShell("root", mainTerminal, scheduler).toOption.get
     assert(shell.vum.getUser(shell.authentication).get == "root")
   }
 
   "createMainShell" should "create an UnixLikeInMemoryFS" in {
     val mainTerminal = mock[Terminal]
 
-    val shell = ConsoleGame.createMainShell("root", mainTerminal, scheduler).right.get
+    val shell = ConsoleGame.createMainShell("root", mainTerminal, scheduler).toOption.get
     assert(shell.fs.isInstanceOf[UnixLikeInMemoryFS])
   }
 
@@ -39,9 +40,9 @@ class ConsoleGameSpec extends FlatSpec with MockFactory with Matchers {
 
     (mainTerminal.removeOnInput _).expects(*).anyNumberOfTimes()
 
-    (mainTerminal.onInput _).expects(*).onCall { subscriber: _root_.org.enricobn.terminal.StringPub#Sub =>
-      subscriber.notify(null, "enrico")
-      subscriber.notify(null, Terminal.CR)
+    (mainTerminal.onInput _).expects(*).onCall { (subscriber: String => Unit) =>
+      subscriber.apply("enrico")
+      subscriber.apply(Terminal.CR)
     }.anyNumberOfTimes()
 
     val game = new ConsoleGame(mainTerminal, messagesTerminal, logger, scheduler) {

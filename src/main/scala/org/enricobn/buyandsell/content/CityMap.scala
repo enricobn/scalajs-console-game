@@ -3,15 +3,21 @@ package org.enricobn.buyandsell.content
 import org.enricobn.consolegame.UpickleUtils
 import org.enricobn.consolegame.content.SimpleSerializer
 import org.enricobn.vfs.IOError
+import upickle.default.{macroRW, ReadWriter as RW}
 
 import scala.collection.mutable
 
 /**
   * Created by enrico on 1/8/17.
   */
+
+object CityMap {
+  implicit val rw: RW[CityMap] = macroRW
+}
+
 case class CityMap(width: Int, height: Int, buildings: Map[Position, Building] = Map.empty) {
 
-  def add(position: Position, building: Building): Either[String,CityMap] = {
+  def add(position: Position, building: Building): Either[String, CityMap] = {
     if (position.x < 0 || position.y < 0) {
       return Left("Out of bounds.")
     }
@@ -19,7 +25,7 @@ case class CityMap(width: Int, height: Int, buildings: Map[Position, Building] =
     for (x <- 0 until building.width) {
       for (y <- 0 until building.height) {
         val cell: Position = Position(position.x + x, position.y + y)
-        if (buildings.get(cell).isDefined) {
+        if (buildings.contains(cell)) {
           return Left(s"$cell Already defined.")
         } else if (cell.x >= width || cell.y >= height) {
           return Left("Out of bounds.")
@@ -27,7 +33,7 @@ case class CityMap(width: Int, height: Int, buildings: Map[Position, Building] =
       }
     }
 
-    val newBuildings = mutable.Map(buildings.toSeq: _*)
+    val newBuildings = mutable.Map(buildings.toSeq *)
 
     for (x <- 0 until building.width) {
       for (y <- 0 until building.height) {
@@ -61,7 +67,15 @@ case class CityMap(width: Int, height: Int, buildings: Map[Position, Building] =
   }
 }
 
+object Position {
+  implicit val rw: RW[Position] = macroRW
+}
+
 case class Position(x: Int, y: Int)
+
+object Building {
+  implicit val rw: RW[Building] = RW.merge(PoliceStation.rw, Hospital.rw)
+}
 
 sealed trait Building {
   val width: Int
@@ -70,8 +84,16 @@ sealed trait Building {
   val size: Int = width * height
 }
 
+object PoliceStation {
+  implicit val rw: RW[PoliceStation] = macroRW
+}
+
 case class PoliceStation(width: Int, height: Int) extends Building {
   override val id: Char = 'P'
+}
+
+object Hospital {
+  implicit val rw: RW[Hospital] = macroRW
 }
 
 case class Hospital(width: Int, height: Int) extends Building {

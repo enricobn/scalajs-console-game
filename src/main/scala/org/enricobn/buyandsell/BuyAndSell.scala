@@ -1,10 +1,9 @@
 package org.enricobn.buyandsell
 
 import org.enricobn.buyandsell.commands.{BuyCommand, CreateCityCommand, MainLoopCommand}
-import org.enricobn.buyandsell.content._
+import org.enricobn.buyandsell.content.*
 import org.enricobn.consolegame.{BrowserConsoleGame, GameCommand, Serializer}
 import org.enricobn.shell.impl.VirtualShell
-import org.enricobn.vfs.utils.Utils.RightBiasedEither
 import org.enricobn.vfs.{Authentication, IOError}
 
 import scala.scalajs.js.annotation.{JSExportAll, JSExportTopLevel}

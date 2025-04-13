@@ -3,13 +3,13 @@
   "fs": {
     "folders": [
       {
-        "path": "/etc",
+        "path": "/bin",
         "owner": "root",
         "group": "root",
         "permissions": 775
       },
       {
-        "path": "/bin",
+        "path": "/etc",
         "owner": "root",
         "group": "root",
         "permissions": 775
@@ -33,6 +33,30 @@
         "permissions": 775
       },
       {
+        "path": "/home/enrico",
+        "owner": "enrico",
+        "group": "root",
+        "permissions": 775
+      },
+      {
+        "path": "/home/root",
+        "owner": "root",
+        "group": "root",
+        "permissions": 775
+      },
+      {
+        "path": "/home/user1",
+        "owner": "user1",
+        "group": "root",
+        "permissions": 775
+      },
+      {
+        "path": "/home/user2",
+        "owner": "user2",
+        "group": "root",
+        "permissions": 775
+      },
+      {
         "path": "/home/user1/User1City",
         "owner": "user1",
         "group": "game",
@@ -45,32 +69,8 @@
         "permissions": 775
       },
       {
-        "path": "/home/user2",
-        "owner": "user2",
-        "group": "root",
-        "permissions": 775
-      },
-      {
         "path": "/usr/bin",
         "owner": "root",
-        "group": "root",
-        "permissions": 775
-      },
-      {
-        "path": "/home/root",
-        "owner": "root",
-        "group": "root",
-        "permissions": 775
-      },
-      {
-        "path": "/home/enrico/Pisa",
-        "owner": "enrico",
-        "group": "game",
-        "permissions": 775
-      },
-      {
-        "path": "/home/enrico",
-        "owner": "enrico",
         "group": "root",
         "permissions": 775
       },
@@ -79,30 +79,24 @@
         "owner": "root",
         "group": "root",
         "permissions": 775
-      },
-      {
-        "path": "/home/user1",
-        "owner": "user1",
-        "group": "root",
-        "permissions": 775
       }
     ],
     "files": [
       {
-        "path": "/home/user1/User1City/warehouse",
-        "owner": "user1",
-        "group": "game",
+        "path": "/etc/gameinfo",
+        "owner": "root",
+        "group": "root",
         "permissions": 664,
-        "serializerName": "org.enricobn.buyandsell.content.Warehouse",
-        "ser": "{\"goods\":[{\"good\":\"bronze\",\"qty\":20,\"price\":[{\"base\":\"50\"}]},{\"good\":\"silver\",\"qty\":10,\"price\":[{\"base\":\"300\"}]},{\"good\":\"gold\",\"qty\":5,\"price\":[{\"base\":\"1000\"}]}]}"
+        "serializerName": "org.enricobn.buyandsell.content.GameInfo",
+        "ser": "{\"user\":\"enrico\"}"
       },
       {
-        "path": "/home/user2/User2City/warehouse",
-        "owner": "user2",
-        "group": "game",
-        "permissions": 664,
-        "serializerName": "org.enricobn.buyandsell.content.Warehouse",
-        "ser": "{\"goods\":[{\"good\":\"bronze\",\"qty\":20,\"price\":[{\"base\":\"50\"}]},{\"good\":\"silver\",\"qty\":10,\"price\":[{\"base\":\"300\"}]},{\"good\":\"gold\",\"qty\":5,\"price\":[{\"base\":\"1000\"}]}]}"
+        "path": "/etc/passwd",
+        "owner": "root",
+        "group": "root",
+        "permissions": 600,
+        "serializerName": "org.enricobn.vfs.impl.Passwd",
+        "ser": "{\"users\":[{\"auth\":{\"id\":\"-325360617\",\"user\":\"root\"},\"user\":\"root\",\"password\":\"-1165823675\",\"group\":\"root\"},{\"auth\":{\"id\":\"-617403201\",\"user\":\"enrico\"},\"user\":\"enrico\",\"password\":\"348191406\",\"group\":\"game\"},{\"auth\":{\"id\":\"-2054949888\",\"user\":\"user1\"},\"user\":\"user1\",\"password\":\"-1445145236\",\"group\":\"game\"},{\"auth\":{\"id\":\"1990598589\",\"user\":\"user2\"},\"user\":\"user2\",\"password\":\"-486275227\",\"group\":\"game\"}]}"
       },
       {
         "path": "/etc/profile",
@@ -113,32 +107,8 @@
         "ser": "{\"value\":{\"PATH\":\"/bin:/usr/bin\"}}"
       },
       {
-        "path": "/home/enrico/.history",
+        "path": "/home/enrico/.profile",
         "owner": "enrico",
-        "group": "game",
-        "permissions": 664,
-        "serializerName": "org.enricobn.shell.impl.StringList",
-        "ser": "{\"value\":[\"createcity Pisa\"]}"
-      },
-      {
-        "path": "/home/user1/.profile",
-        "owner": "user1",
-        "group": "game",
-        "permissions": 664,
-        "serializerName": "org.enricobn.shell.impl.StringMap",
-        "ser": "{}"
-      },
-      {
-        "path": "/etc/gameinfo",
-        "owner": "root",
-        "group": "root",
-        "permissions": 664,
-        "serializerName": "org.enricobn.buyandsell.content.GameInfo",
-        "ser": "{\"user\":\"enrico\"}"
-      },
-      {
-        "path": "/home/user2/.profile",
-        "owner": "user2",
         "group": "game",
         "permissions": 664,
         "serializerName": "org.enricobn.shell.impl.StringMap",
@@ -153,28 +123,36 @@
         "ser": "{\"money\":\"10000\",\"availableCities\":2,\"cities\":[]}"
       },
       {
-        "path": "/home/enrico/Pisa/warehouse",
-        "owner": "enrico",
-        "group": "game",
-        "permissions": 664,
-        "serializerName": "org.enricobn.buyandsell.content.Warehouse",
-        "ser": "{\"goods\":[{\"good\":\"bronze\",\"qty\":20,\"price\":[{\"base\":\"50\"}]},{\"good\":\"silver\",\"qty\":10,\"price\":[{\"base\":\"300\"}]},{\"good\":\"gold\",\"qty\":5,\"price\":[{\"base\":\"1000\"}]}]}"
-      },
-      {
-        "path": "/etc/passwd",
-        "owner": "root",
-        "group": "root",
-        "permissions": 600,
-        "serializerName": "org.enricobn.vfs.impl.Passwd",
-        "ser": "{\"users\":[{\"auth\":{\"id\":\"816c7ecd-b605-49c9-b194-f1397e954a19\",\"user\":\"root\"},\"user\":\"root\",\"password\":\"90116af5-0902-4931-baab-dce0633a9056\",\"group\":\"root\"},{\"auth\":{\"id\":\"45d84374-019f-4882-b47d-dc1076abf674\",\"user\":\"enrico\"},\"user\":\"enrico\",\"password\":\"97571146-2ab9-4639-9031-8018ead8bd55\",\"group\":\"game\"},{\"auth\":{\"id\":\"312a0d55-2c85-47c7-8951-fc8099568314\",\"user\":\"user1\"},\"user\":\"user1\",\"password\":\"d0925ad1-4b3e-4f7c-8bfd-0b33338406c7\",\"group\":\"game\"},{\"auth\":{\"id\":\"450bdb75-1583-45ac-b5a9-5c00b81558e3\",\"user\":\"user2\"},\"user\":\"user2\",\"password\":\"cc25aa9e-d0ca-49a9-b96e-f48197091785\",\"group\":\"game\"}]}"
-      },
-      {
-        "path": "/home/enrico/.profile",
-        "owner": "enrico",
+        "path": "/home/user1/.profile",
+        "owner": "user1",
         "group": "game",
         "permissions": 664,
         "serializerName": "org.enricobn.shell.impl.StringMap",
         "ser": "{}"
+      },
+      {
+        "path": "/home/user1/User1City/warehouse",
+        "owner": "user1",
+        "group": "game",
+        "permissions": 664,
+        "serializerName": "org.enricobn.buyandsell.content.Warehouse",
+        "ser": "{\"goods\":[{\"good\":\"bronze\",\"qty\":20,\"price\":{\"base\":\"50\"}},{\"good\":\"silver\",\"qty\":10,\"price\":{\"base\":\"300\"}},{\"good\":\"gold\",\"qty\":5,\"price\":{\"base\":\"1000\"}}]}"
+      },
+      {
+        "path": "/home/user2/.profile",
+        "owner": "user2",
+        "group": "game",
+        "permissions": 664,
+        "serializerName": "org.enricobn.shell.impl.StringMap",
+        "ser": "{}"
+      },
+      {
+        "path": "/home/user2/User2City/warehouse",
+        "owner": "user2",
+        "group": "game",
+        "permissions": 664,
+        "serializerName": "org.enricobn.buyandsell.content.Warehouse",
+        "ser": "{\"goods\":[{\"good\":\"bronze\",\"qty\":20,\"price\":{\"base\":\"50\"}},{\"good\":\"silver\",\"qty\":10,\"price\":{\"base\":\"300\"}},{\"good\":\"gold\",\"qty\":5,\"price\":{\"base\":\"1000\"}}]}"
       },
       {
         "path": "/var/log/messages.log",

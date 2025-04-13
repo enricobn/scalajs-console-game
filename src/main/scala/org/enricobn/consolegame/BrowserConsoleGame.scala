@@ -1,12 +1,11 @@
 package org.enricobn.consolegame
 
-import org.enricobn.consolegame.BrowserConsoleGame._
+import org.enricobn.consolegame.BrowserConsoleGame.*
 import org.enricobn.shell.impl.RequestAnimationFrameScheduler
-import org.enricobn.terminal._
+import org.enricobn.terminal.*
 import org.scalajs.dom
-import org.scalajs.dom.FileReader
 import org.scalajs.dom.html.{Anchor, Button, Canvas, Input}
-import org.scalajs.dom.raw._
+import org.scalajs.dom.{Blob, FileReader}
 
 import scala.scalajs.js
 
@@ -34,7 +33,7 @@ abstract class BrowserConsoleGame(mainCanvasID: String, messagesCanvasID: String
   private val saveGameAnchor = dom.document.getElementById(saveGameID).asInstanceOf[Anchor]
   private val mainCanvas = dom.document.getElementById(mainCanvasID).asInstanceOf[Canvas]
 
-  newGameButton.onclick = { _: MouseEvent => {
+  newGameButton.onclick = { (_: dom.MouseEvent) => {
     mainCanvas.contentEditable = "true"
     mainCanvas.focus()
     onNewGame()
@@ -45,7 +44,7 @@ abstract class BrowserConsoleGame(mainCanvasID: String, messagesCanvasID: String
 
   saveGameAnchor.onclick = onSaveGame _
 
-  private[consolegame] def readGame(input: Input)(evt: Event): Unit = {
+  private[consolegame] def readGame(input: Input)(evt: dom.Event): Unit = {
     //Retrieve the first (and only!) File from the FileList object
     val f = evt.target.asInstanceOf[Input].files(0)
 
@@ -56,11 +55,11 @@ abstract class BrowserConsoleGame(mainCanvasID: String, messagesCanvasID: String
     }
   }
 
-  private def fileReaderOnLoad(f: File, r: FileReader)(e: UIEvent) {
+  private def fileReaderOnLoad(f: dom.File, r: FileReader)(e: dom.ProgressEvent): Unit = {
     loadGame(f.name, r.result.toString)
   }
 
-  private def onSaveGame(evt: MouseEvent): Unit = {
+  private def onSaveGame(evt: dom.MouseEvent): Unit = {
     onSaveGame()
   }
 
@@ -71,8 +70,8 @@ abstract class BrowserConsoleGame(mainCanvasID: String, messagesCanvasID: String
   override def showError(message: String): Unit = dom.window.alert(message)
 
   override def saveToFile(content: String, fileName: String): Unit = {
-    val file = new Blob(js.Array(content), BlobPropertyBag("text/plain"))
-    saveGameAnchor.href = URL.createObjectURL(file)
+    val file = new Blob(js.Array(content), dom.BlobPropertyBag("text/plain"))
+    saveGameAnchor.href = dom.URL.createObjectURL(file)
     saveGameAnchor.pathname = fileName
   }
 

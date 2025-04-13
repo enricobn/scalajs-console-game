@@ -2,11 +2,11 @@ package org.enricobn.buyandsell.content
 
 import org.enricobn.consolegame.UpickleUtils
 import org.enricobn.consolegame.content.SimpleSerializer
-import org.enricobn.vfs._
-import org.enricobn.vfs.utils.Utils.RightBiasedEither
-import upickle.default._
+import org.enricobn.vfs.*
+import upickle.default.{macroRW, ReadWriter as RW}
 
 object GameInfo {
+  implicit val rw: RW[GameInfo] = macroRW
 
   def get(fs: VirtualFS)(implicit authentication: Authentication): Either[IOError, VirtualFileWithContent[GameInfo]] = {
     for {

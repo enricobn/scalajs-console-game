@@ -3,8 +3,8 @@ package org.enricobn.buyandsell.content
 import org.enricobn.consolegame.UpickleUtils
 import org.enricobn.consolegame.content.SimpleSerializer
 import org.enricobn.shell.impl.VirtualShell
-import org.enricobn.vfs.utils.Utils.RightBiasedEither
 import org.enricobn.vfs.{Authentication, IOError, VirtualFileWithContent, VirtualPath}
+import upickle.default.{macroRW, ReadWriter as RW}
 
 case class GameStatistics(money: BigDecimal, availableCities: Int, cities: Set[String]) {
 
@@ -14,6 +14,7 @@ case class GameStatistics(money: BigDecimal, availableCities: Int, cities: Set[S
 }
 
 object GameStatistics {
+  implicit val rw: RW[GameStatistics] = macroRW
 
   def get(shell: VirtualShell) : Either[IOError, VirtualFileWithContent[GameStatistics]] = {
     implicit val authentication: Authentication = shell.authentication

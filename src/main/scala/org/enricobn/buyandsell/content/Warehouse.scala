@@ -4,11 +4,12 @@ import org.enricobn.buyandsell.content.GoodEnum.GoodEnum
 import org.enricobn.consolegame.UpickleUtils
 import org.enricobn.consolegame.content.SimpleSerializer
 import org.enricobn.shell.impl.VirtualShell
-import org.enricobn.vfs.IOError._
-import org.enricobn.vfs.utils.Utils.RightBiasedEither
+import org.enricobn.vfs.IOError.*
 import org.enricobn.vfs.{Authentication, IOError, VirtualPath}
+import upickle.default.{macroRW, ReadWriter as RW}
 
 object Warehouse {
+  implicit val rw: RW[Warehouse] = macroRW
 
   def get(shell: VirtualShell, cityName: String): Either[IOError, Warehouse] = {
     implicit val authentication: Authentication = shell.authentication
@@ -56,7 +57,7 @@ case class Warehouse(private val goods: List[Good]) {
         case _ => s"Cannot find good $goodEnum".ioErrorE
       }
 
-  def availableGoodNames: List[String] = goods.filter(good => good.qty > 0 && good.price.nonEmpty).map(_.good.toString)
+  def availableGoodNames: List[String] = goods.filter(good => good.qty > 0 && good.price.nonEmpty).map(_.good)
 
   override def toString: String = {
     goods.map(v => v.good + "\t\t" + v.qty + "\t\t" + toString(v.price)).mkString("\n")
@@ -67,7 +68,15 @@ case class Warehouse(private val goods: List[Good]) {
   }
 }
 
+object Good {
+  implicit val rw: RW[Good] = macroRW
+}
+
 case class Good(good: String, qty: Int, price: Option[Price])
+
+object Price {
+  implicit val rw: RW[Price] = macroRW
+}
 
 case class Price(base: BigDecimal)
 

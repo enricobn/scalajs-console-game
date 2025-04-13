@@ -4,18 +4,18 @@ import org.enricobn.buyandsell.content.{GameInfo, GameInfoSerializer}
 import org.enricobn.consolegame.commands.MessagesCommand
 import org.enricobn.consolegame.content.{Messages, MessagesSerializer, PasswdSerializer, SimpleSerializer}
 import org.enricobn.shell.VirtualCommandOperations
-import org.enricobn.shell.impl._
-import org.enricobn.terminal._
-import org.enricobn.vfs._
+import org.enricobn.shell.impl.*
+import org.enricobn.terminal.*
+import org.enricobn.vfs.*
 import org.enricobn.vfs.impl.{VirtualSecurityManagerImpl, VirtualUsersManagerFileImpl}
 import org.enricobn.vfs.inmemory.InMemoryFS
-import org.enricobn.vfs.utils.Utils.RightBiasedEither
 
-import java.util.UUID
 import scala.scalajs.js.annotation.JSExportAll
+import scala.util.Random.nextInt
 
 // to access members of structural types (new {}) without warnings
-import org.enricobn.vfs.IOError._
+import org.enricobn.vfs.IOError.*
+import upickle.default.{macroRW, ReadWriter as RW}
 
 import scala.language.reflectiveCalls
 
@@ -34,7 +34,7 @@ object ConsoleGame {
     for {
       _ <- VirtualCommandOperations.createCommandFiles(fs.bin, LsCommand, CdCommand, CatCommand)
       userCommands <- allCommands
-      _ <- VirtualCommandOperations.createCommandFiles(fs.usrBin, userCommands.map(_.virtualCommand): _*)
+      _ <- VirtualCommandOperations.createCommandFiles(fs.usrBin, userCommands.map(_.virtualCommand) *)
       messagesLog <- fs.varLog.findFile("messages.log")
       messagesFile <-
         if (messagesLog.isDefined) {
@@ -53,7 +53,7 @@ object ConsoleGame {
   private[consolegame] def createMainShell(rootPassword: String, mainTerminal: Terminal, scheduler: Scheduler): Either[IOError, VirtualShell] = {
     val _fs = InMemoryFS(
       {
-        VirtualUsersManagerFileImpl(_, rootPassword).right.get
+        VirtualUsersManagerFileImpl(_, rootPassword).toOption.get
       },
       { (_, vum) => new VirtualSecurityManagerImpl(vum) })
     for {
@@ -75,10 +75,10 @@ object ConsoleGame {
 @JSExportAll
 abstract class ConsoleGame(mainTerminal: Terminal, messagesTerminal: Terminal, logger: JSLogger, scheduler: Scheduler) {
 
-  import org.enricobn.consolegame.ConsoleGame._
+  import org.enricobn.consolegame.ConsoleGame.*
 
-  private var rootPassword = UUID.randomUUID().toString
-  private var userPassword = UUID.randomUUID().toString
+  private var rootPassword = nextInt().toString
+  private var userPassword = nextInt().toString
   private var fs: UnixLikeInMemoryFS = _
   private var vum: VirtualUsersManager = _
   private var rootAuthentication: Authentication = _
@@ -113,13 +113,13 @@ abstract class ConsoleGame(mainTerminal: Terminal, messagesTerminal: Terminal, l
     val userTerminal = new FakeTerminal
     val userShell = UnixLikeVirtualShell(shell.fs.asInstanceOf[UnixLikeInMemoryFS], userTerminal, shell.fs.root, rootAuthentication,
       scheduler)
-    val password = UUID.randomUUID().toString
+    val password = nextInt().toString
 
     userTerminal.setShell(userShell)
 
     for {
-      _ <- shell.vum.addUser(user, password, group)(rootAuthentication).right
-      _ <- userShell.login(user, password).right
+      _ <- shell.vum.addUser(user, password, group)(rootAuthentication)
+      _ <- userShell.login(user, password)
     } yield userShell
   }
 
@@ -188,7 +188,7 @@ abstract class ConsoleGame(mainTerminal: Terminal, messagesTerminal: Terminal, l
             showError(s"Error initializing game $e")
           }, { _ =>
             getBackgroundCommand match {
-              case Some(x) => shell.startWithCommand(true, x._1, x._2: _*)
+              case Some(x) => shell.startWithCommand(true, x._1, x._2 *)
               case None => shell.start()
             }
             changePermissionOfPrivateCommands.left.foreach(error => showError(s"Error changing permissions of start commands. $error"))
@@ -250,7 +250,7 @@ abstract class ConsoleGame(mainTerminal: Terminal, messagesTerminal: Terminal, l
       serializedGame <- UpickleUtils.readE[SerializedGame](resultContent)
       passwd <- serializedGame.fs.files.find(_.path == "/etc/passwd").toRight(IOError("cannot find passwd file"))
         .flatMap(content => PasswdSerializer.deserialize(content.ser))
-      inMemoryFs = InMemoryFS(fs => VirtualUsersManagerFileImpl(fs, passwd).right.get,
+      inMemoryFs = InMemoryFS(fs => VirtualUsersManagerFileImpl(fs, passwd).toOption.get,
         (_, vum) => new VirtualSecurityManagerImpl(vum))
       newRootAuthentication = passwd.users.find(_.user == VirtualUsersManager.ROOT).get.auth
       newRootPassword = passwd.users.find(_.user == VirtualUsersManager.ROOT).get.password
@@ -280,7 +280,7 @@ abstract class ConsoleGame(mainTerminal: Terminal, messagesTerminal: Terminal, l
           }
 
           // TODO error
-          val homeFolder = newShell.toFolder("/home/" + newUserName).right.get
+          val homeFolder = newShell.toFolder("/home/" + newUserName).toOption.get
 
           if (messagesShell != null) {
             messagesShell.stop(rootAuthentication)
@@ -309,7 +309,7 @@ abstract class ConsoleGame(mainTerminal: Terminal, messagesTerminal: Terminal, l
           clearScreen(mainTerminal)
 
           getBackgroundCommand match {
-            case Some(x) => shell.startWithCommand(true, x._1, x._2: _*)
+            case Some(x) => shell.startWithCommand(true, x._1, x._2 *)
             case None => shell.start()
           }
         } catch {
@@ -335,7 +335,7 @@ abstract class ConsoleGame(mainTerminal: Terminal, messagesTerminal: Terminal, l
   private def defaultCommands: Seq[GameCommand] = Seq(GameCommand(new MessagesCommand(), visible = false))
 
   // TODO error for logging (even for getAllFiles?)
-  private def allFiles: Set[VirtualFile] = {
+  private def allFiles: Seq[VirtualFile] = {
     implicit val authentication: Authentication = rootAuthentication
 
     vum.logRoot(rootPassword)
@@ -346,7 +346,7 @@ abstract class ConsoleGame(mainTerminal: Terminal, messagesTerminal: Terminal, l
 
   // TODO create scalajs-vfs VirtualFolder.getAllFiles
   // TODO error?
-  private def getAllFiles(folder: VirtualFolder): Set[VirtualFile] = {
+  private def getAllFiles(folder: VirtualFolder): Seq[VirtualFile] = {
     implicit val authentication: Authentication = rootAuthentication
 
     (for {
@@ -355,7 +355,7 @@ abstract class ConsoleGame(mainTerminal: Terminal, messagesTerminal: Terminal, l
     } yield {
       files ++ folders.flatMap(getAllFiles)
     }) match {
-      case Left(_) => Set()
+      case Left(_) => Seq()
       case Right(files) => files
     }
   }
@@ -384,6 +384,7 @@ case class SerializedFolder(path: String, owner: String, group: String, permissi
 case class SerializedFS(folders: List[SerializedFolder], files: List[SerializedFile])
 
 object StringListSerializer extends SimpleSerializer(classOf[StringList]) {
+  implicit val rw: RW[StringList] = macroRW
 
   override def serializeIt(content: StringList): Either[IOError, String] = UpickleUtils.writeE(content)
 
@@ -392,11 +393,19 @@ object StringListSerializer extends SimpleSerializer(classOf[StringList]) {
 }
 
 object StringMapSerializer extends SimpleSerializer(classOf[StringMap]) {
+  implicit val rw: RW[StringMap] = macroRW
 
   override def serializeIt(content: StringMap): Either[IOError, String] = UpickleUtils.writeE(content)
 
   override def deserialize(ser: String): Either[IOError, AnyRef] = UpickleUtils.readE[StringMap](ser)
 
+}
+
+object SerializedGame {
+  implicit val rw: RW[SerializedGame] = macroRW
+  implicit val rwfs: RW[SerializedFS] = macroRW
+  implicit val rwfolder: RW[SerializedFolder] = macroRW
+  implicit val rwfile: RW[SerializedFile] = macroRW
 }
 
 case class SerializedGame(userName: String, fs: SerializedFS)

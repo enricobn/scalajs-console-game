@@ -1,9 +1,8 @@
 package org.enricobn.consolegame
 
 import org.enricobn.shell.impl.VirtualShell
-import org.enricobn.vfs._
+import org.enricobn.vfs.*
 import org.enricobn.vfs.utils.Utils
-import org.enricobn.vfs.utils.Utils.RightBiasedEither
 
 object SerializedFSOperations {
 
@@ -16,19 +15,19 @@ object SerializedFSOperations {
       // I sort them so I create them in order
       _ <- Utils.lift(serializedFS.folders.sortBy(_.path).map(serializedFolder => {
         for {
-          folder <- mkdir(shell, serializedFolder.path).right
-          _ <- folder.chown(serializedFolder.owner).right
-          _ <- folder.chgrp(serializedFolder.group).right
-          result <- folder.chmod(serializedFolder.permissions).right
+          folder <- mkdir(shell, serializedFolder.path)
+          _ <- folder.chown(serializedFolder.owner)
+          _ <- folder.chgrp(serializedFolder.group)
+          result <- folder.chmod(serializedFolder.permissions)
         } yield {
           result
         }
-      })).right
+      }))
       serializedAndSerializers <- Utils.liftTuple(serializedFS.files.map(serializedFile => {
         val serializerE = serializers.get(serializedFile.serializerName)
           .toRight(IOError(s"Cannot find serializer with name=${serializedFile.serializerName}"))
         (serializedFile, serializerE)
-      })).right
+      }))
       serializedAndSerializerAndContent <- {
         val ssc = serializedAndSerializers.map { case (serializedFile, serializer) =>
           for {
@@ -52,12 +51,12 @@ object SerializedFSOperations {
           case Left(e) => Left(e)
         }
 
-        result.right
+        result
       }
       contentFiles <- Utils.liftTuple(serializedAndSerializerAndContent.map { case ((serializedFile, _), content) =>
         (content, shell.toFile(serializedFile.path))
-      }).right
-      _ <- Utils.lift(contentFiles.map { case (content, file) => file.setContent(content) }).right
+      })
+      _ <- Utils.lift(contentFiles.map { case (content, file) => file.setContent(content) })
     } yield ()
 
   /**
@@ -67,22 +66,22 @@ object SerializedFSOperations {
     * Would be better to raise an error? But in that case I must ignore the commands, so I must mark them as
     * non serializable in some way.
     */
-  def build(files: Set[VirtualFile], folders: List[VirtualFolder], serializers: Map[String, Serializer])
+  def build(files: Seq[VirtualFile], folders: List[VirtualFolder], serializers: Map[String, Serializer])
            (implicit authentication: Authentication): Either[IOError, SerializedFS] =
     for {
       fileContents <- Utils.liftTuple(
         files.map(file => (file, file.getContent))
-      ).right
+      )
       fileContentSerializers <- Right(Utils.allSome(fileContents.map {
         fileContentSerializer(_, serializers)
-      })).right
+      }))
       serializedContents <- Utils.liftTuple(
         fileContentSerializers.map { case ((file, content), serializer) => ((file, serializer), serializer.serialize(content))
-        }).right
+        })
       files <- Right(serializedContents.map { case ((file, serializer), ser) =>
         SerializedFile(file.path, file.owner, file.group, file.permissions.octal, serializer.name, ser)
-      }).right
-      folders <- Right(folders.map(folder => SerializedFolder(folder.path, folder.owner, folder.group, folder.permissions.octal))).right
+      })
+      folders <- Right(folders.map(folder => SerializedFolder(folder.path, folder.owner, folder.group, folder.permissions.octal)))
     } yield {
       SerializedFS(folders, files)
     }

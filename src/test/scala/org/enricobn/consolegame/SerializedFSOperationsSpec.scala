@@ -2,7 +2,6 @@ package org.enricobn.consolegame
 
 import org.enricobn.SpecWithShell
 import org.enricobn.buyandsell.BuyAndSell
-import org.enricobn.vfs.utils.Utils.RightBiasedEither
 
 import scala.language.{existentials, reflectiveCalls}
 
@@ -36,7 +35,7 @@ class SerializedFSOperationsSpec extends SpecWithShell {
     * from https://stackoverflow.com/questions/40866662/unit-testing-scala-js-read-test-data-from-file-residing-in-test-resources
     */
   def readResource(path: String): String = {
-    import scalajs.js.Dynamic.{global => g}
+    import scalajs.js.Dynamic.global as g
     val fs = g.require("fs")
 
     def readFile(name: String): String = {

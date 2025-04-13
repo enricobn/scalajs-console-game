@@ -1,12 +1,10 @@
 package org.enricobn.consolegame.commands
 
 import org.enricobn.consolegame.content.Messages
+import org.enricobn.shell.*
 import org.enricobn.shell.ShellInput.ShellInputDescriptor
-import org.enricobn.shell._
-import org.enricobn.shell.impl._
-import org.enricobn.vfs._
-
-import scala.collection.mutable
+import org.enricobn.shell.impl.*
+import org.enricobn.vfs.*
 
 /**
   * Created by enrico on 12/17/16.
@@ -16,29 +14,26 @@ object MessagesCommand {
 }
 
 class MessagesCommand() extends VirtualCommand {
-  import MessagesCommand._
+  import MessagesCommand.*
 
   override def name: String = NAME
 
   override def run(shell: VirtualShell, shellInput: ShellInput, shellOutput: ShellOutput, args: String*): Either[IOError, VirtualProcess] = {
-    val messagesSubscriber = new VirtualFSNotifierPub#Sub {
-
-      override def notify(pub: mutable.Publisher[Unit], event: Unit): Unit = {
+    val messagesSubscriber : Unit => Unit = { _ =>
         // TODO error
-        for {
-          messages <- Messages.getMessages(shell).right
+        val r = for {
+          messages <- Messages.getMessages(shell)
         } yield {
           shellOutput.write(messages.messages.last + "\n")
           shellOutput.flush()
         }
-      }
-
+        r.getOrElse(())
     }
 
     var _running = true
 
     for {
-      messagesFile <- Messages.getMessagesFile(shell).right
+      messagesFile <- Messages.getMessagesFile(shell)
     } yield {
       shell.fs.notifier.addWatch(messagesFile, messagesSubscriber)
 

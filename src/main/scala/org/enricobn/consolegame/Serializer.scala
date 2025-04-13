@@ -4,7 +4,7 @@ import org.enricobn.vfs.IOError
 
 trait Serializer {
 
-  val clazz: Class[_]
+  val clazz: Class[?]
 
   def name: String = clazz.getName
 

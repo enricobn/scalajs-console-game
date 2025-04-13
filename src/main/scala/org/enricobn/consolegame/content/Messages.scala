@@ -3,8 +3,8 @@ package org.enricobn.consolegame.content
 import org.enricobn.consolegame.UpickleUtils
 import org.enricobn.shell.impl.VirtualShell
 import org.enricobn.terminal.Terminal
-import org.enricobn.vfs.utils.Utils.RightBiasedEither
 import org.enricobn.vfs.{Authentication, IOError, VirtualFile, VirtualPath}
+import upickle.default.{macroRW, ReadWriter as RW}
 
 /**
   * Created by enrico on 12/25/16.
@@ -15,15 +15,15 @@ object Messages {
     implicit val authentication: Authentication = shell.authentication
 
     for {
-      messagesFile <- getMessagesFile(shell).right
-      messages <- messagesFile.contentAs(classOf[Messages]).right
+      messagesFile <- getMessagesFile(shell)
+      messages <- messagesFile.contentAs(classOf[Messages])
     } yield messages
   }
 
   def getMessagesFile(shell: VirtualShell) : Either[IOError, VirtualFile] = {
     implicit val authentication: Authentication = shell.authentication
 
-    VirtualPath.absolute("var", "log", "messages.log").right.flatMap(_.toFile(shell.fs))
+    VirtualPath.absolute("var", "log", "messages.log").flatMap(_.toFile(shell.fs))
   }
 
   def addMessage(shell: VirtualShell, message: String) : Either[IOError, Unit] = {
@@ -32,9 +32,9 @@ object Messages {
     val runAddMessage = for {
       path <- VirtualPath.absolute("var", "log", "messages.log")
       messagesFile <- path.toFile(shell.fs)
-      messages <- messagesFile.contentAs(classOf[Messages]).right
-      newMessages <- Right(messages.add(message)).right
-      result <- messagesFile.setContent(newMessages).right
+      messages <- messagesFile.contentAs(classOf[Messages])
+      newMessages <- Right(messages.add(message))
+      result <- messagesFile.setContent(newMessages)
     } yield result
 
     runAddMessage
@@ -53,6 +53,7 @@ case class Messages(messages: Seq[String]) {
 }
 
 object MessagesSerializer extends SimpleSerializer(classOf[Messages]) {
+  implicit val rw: RW[Messages] = macroRW
 
   override def serializeIt(content: Messages): Either[IOError, String] = UpickleUtils.writeE(content)
 

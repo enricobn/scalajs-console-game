@@ -3,11 +3,11 @@ package org.enricobn.buyandsell.content
 import org.enricobn.consolegame.UpickleUtils
 import org.enricobn.consolegame.content.SimpleSerializer
 import org.enricobn.shell.impl.VirtualShell
-import org.enricobn.vfs.utils.Utils.RightBiasedEither
 import org.enricobn.vfs.{Authentication, IOError, VirtualPath}
-import upickle.default._
+import upickle.default.{macroRW, ReadWriter as RW}
 
 object City {
+  implicit val rw: RW[City] = macroRW
   val fileName = "city"
 
   def get(shell: VirtualShell, user: String, cityName: String): Either[IOError, City] = {
@@ -39,6 +39,10 @@ case class City(name: String, statistics: Statistics) {
   override def toString: String =
     "Name: " + name + "\n" +
     statistics
+}
+
+object Statistics {
+  implicit val rw: RW[Statistics] = macroRW
 }
 
 case class Statistics(population: Int, employed: Int) {

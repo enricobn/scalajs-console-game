@@ -4,28 +4,26 @@ import org.enricobn.consolegame.content.Messages
 import org.enricobn.shell.impl.VirtualShell
 import org.enricobn.terminal.Terminal
 
-import scala.collection.mutable
-
 class FakeTerminal extends Terminal {
   private var shell: VirtualShell = _
   private var text: String = ""
 
-  override def onInput(subscriber: mutable.Subscriber[String, mutable.Publisher[String]]) {}
+  override def onInput(subscriber: String => Unit): Unit = {}
 
-  override def removeOnInput(subscriber: mutable.Subscriber[String, mutable.Publisher[String]]) {}
+  override def removeOnInput(subscriber: String => Unit) : Unit = {}
 
-  override def removeOnInputs() {}
+  override def removeOnInputs(): Unit = {}
 
-  override def add(text: String) {
+  override def add(text: String): Unit = {
     this.text += text
   }
 
-  override def flush() {
+  override def flush(): Unit = {
     Messages.addMessage(shell, shell.authentication.user + ":" + text)
     text = ""
   }
 
-  def setShell(shell: VirtualShell) {
+  def setShell(shell: VirtualShell): Unit = {
     this.shell = shell
   }
 }

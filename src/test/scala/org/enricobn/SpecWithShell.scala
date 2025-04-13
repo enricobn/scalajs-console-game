@@ -4,20 +4,21 @@ import org.enricobn.shell.impl.{UnixLikeInMemoryFS, UnixLikeVirtualShell, Virtua
 import org.enricobn.terminal.Terminal
 import org.enricobn.vfs.Authentication
 import org.enricobn.vfs.inmemory.InMemoryFS
+import org.scalamock.matchers.Matchers
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
 
-abstract class SpecWithShell extends FlatSpec with MockFactory with Matchers {
+abstract class SpecWithShell extends AnyFlatSpec with MockFactory with Matchers {
 
   protected def fixture: Fixture = {
     val term = mock[Terminal]
     val rootPassword = "root"
 
-    val fs = UnixLikeInMemoryFS(InMemoryFS(rootPassword).right.get, rootPassword).right.get
+    val fs = UnixLikeInMemoryFS(InMemoryFS(rootPassword).toOption.get, rootPassword).toOption.get
 
     val vum = fs.vum
 
-    val _rootAuthentication = vum.logRoot(rootPassword).right.get
+    val _rootAuthentication = vum.logRoot(rootPassword).toOption.get
 
     vum.addUser("enrico", "enrico", "enrico")(_rootAuthentication)
 

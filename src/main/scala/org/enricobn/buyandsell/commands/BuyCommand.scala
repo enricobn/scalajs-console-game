@@ -3,10 +3,9 @@ package org.enricobn.buyandsell.commands
 import org.enricobn.buyandsell.content.EitherEnumeration.EitherEnumeration
 import org.enricobn.buyandsell.content.{GameStatistics, GoodEnum, Warehouse}
 import org.enricobn.consolegame.content.Messages
-import org.enricobn.shell._
-import org.enricobn.shell.impl._
-import org.enricobn.vfs._
-import org.enricobn.vfs.utils.Utils.RightBiasedEither
+import org.enricobn.shell.*
+import org.enricobn.shell.impl.*
+import org.enricobn.vfs.*
 
 import scala.util.{Failure, Success, Try}
 
@@ -44,7 +43,7 @@ private object BuyCommandArguments {
     })
 }
 
-import org.enricobn.buyandsell.commands.BuyCommandArguments._
+import org.enricobn.buyandsell.commands.BuyCommandArguments.*
 
 object BuyCommand extends VirtualCommandAbstract("buy", FROM, GOOD, QTY, TO) {
 
