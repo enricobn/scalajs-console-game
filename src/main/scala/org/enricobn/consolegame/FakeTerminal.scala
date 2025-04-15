@@ -4,8 +4,10 @@ import org.enricobn.consolegame.content.Messages
 import org.enricobn.shell.impl.VirtualShell
 import org.enricobn.terminal.Terminal
 
+import scala.compiletime.uninitialized
+
 class FakeTerminal extends Terminal {
-  private var shell: VirtualShell = _
+  private var shell: VirtualShell = uninitialized
   private var text: String = ""
 
   override def onInput(subscriber: String => Unit): Unit = {}

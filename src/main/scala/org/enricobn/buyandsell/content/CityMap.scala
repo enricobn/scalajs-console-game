@@ -6,6 +6,8 @@ import org.enricobn.vfs.IOError
 import upickle.default.{macroRW, ReadWriter as RW}
 
 import scala.collection.mutable
+import scala.util.boundary
+import scala.util.boundary.break
 
 /**
   * Created by enrico on 1/8/17.
@@ -22,16 +24,20 @@ case class CityMap(width: Int, height: Int, buildings: Map[Position, Building] =
       return Left("Out of bounds.")
     }
 
-    for (x <- 0 until building.width) {
-      for (y <- 0 until building.height) {
-        val cell: Position = Position(position.x + x, position.y + y)
-        if (buildings.contains(cell)) {
-          return Left(s"$cell Already defined.")
-        } else if (cell.x >= width || cell.y >= height) {
-          return Left("Out of bounds.")
+    boundary:
+      for (x <- 0 until building.width) {
+        for (y <- 0 until building.height) {
+          val cell: Position = Position(position.x + x, position.y + y)
+          if (buildings.contains(cell)) {
+            break(s"$cell Already defined.")
+          } else if (cell.x >= width || cell.y >= height) {
+            break("Out of bounds.")
+          }
         }
       }
-    }
+    match
+      case m: String => return Left(m)
+      case _ =>
 
     val newBuildings = mutable.Map(buildings.toSeq *)
 

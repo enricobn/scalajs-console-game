@@ -35,12 +35,12 @@ class ConsoleGameSpec extends AnyFlatSpec with MockFactory with Matchers {
     val messagesTerminal = stub[Terminal]
     val logger = stub[JSLogger]
 
-    (mainTerminal.add _).expects(*).anyNumberOfTimes()
+    mainTerminal.add.expects(*).anyNumberOfTimes()
     (mainTerminal.flush : () => Unit).expects().anyNumberOfTimes()
 
-    (mainTerminal.removeOnInput _).expects(*).anyNumberOfTimes()
+    mainTerminal.removeOnInput.expects(*).anyNumberOfTimes()
 
-    (mainTerminal.onInput _).expects(*).onCall { (subscriber: String => Unit) =>
+    mainTerminal.onInput.expects(*).onCall { (subscriber: String => Unit) =>
       subscriber.apply("enrico")
       subscriber.apply(Terminal.CR)
     }.anyNumberOfTimes()

@@ -40,9 +40,11 @@ abstract class BrowserConsoleGame(mainCanvasID: String, messagesCanvasID: String
   }
   }
 
-  loadGame.addEventListener("change", readGame(loadGame) _, useCapture = false)
+  loadGame.addEventListener("change", readGame(loadGame), useCapture = false)
 
-  saveGameAnchor.onclick = onSaveGame _
+  saveGameAnchor.onclick = _ => {
+    onSaveGame()
+  }
 
   private[consolegame] def readGame(input: Input)(evt: dom.Event): Unit = {
     //Retrieve the first (and only!) File from the FileList object
@@ -50,17 +52,9 @@ abstract class BrowserConsoleGame(mainCanvasID: String, messagesCanvasID: String
 
     if (f != null) {
       val r = new FileReader()
-      r.onload = fileReaderOnLoad(f, r) _
+      r.onload = (e: dom.ProgressEvent) => loadGame(f.name, r.result.toString)
       r.readAsText(f)
     }
-  }
-
-  private def fileReaderOnLoad(f: dom.File, r: FileReader)(e: dom.ProgressEvent): Unit = {
-    loadGame(f.name, r.result.toString)
-  }
-
-  private def onSaveGame(evt: dom.MouseEvent): Unit = {
-    onSaveGame()
   }
 
   override def executeLater(runnable: () => Unit): Unit = {
@@ -70,7 +64,7 @@ abstract class BrowserConsoleGame(mainCanvasID: String, messagesCanvasID: String
   override def showError(message: String): Unit = dom.window.alert(message)
 
   override def saveToFile(content: String, fileName: String): Unit = {
-    val file = new Blob(js.Array(content), dom.BlobPropertyBag("text/plain"))
+    val file = new Blob(js.Array(content), new dom.BlobPropertyBag{ `type` = "text/plain" })
     saveGameAnchor.href = dom.URL.createObjectURL(file)
     saveGameAnchor.pathname = fileName
   }

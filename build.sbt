@@ -1,11 +1,9 @@
 import sbt.Keys.*
 
-ThisBuild / scalaVersion := "2.13.16"
+ThisBuild / scalaVersion := "3.6.4"
 
 val project_name = "scalajs-console-game"
 val project_version = "1.0.0-SNAPSHOT"
-
-val artifactPrefix = "target/scala-2.11/" + project_name + "-" + project_version
 
 scalacOptions ++= Seq("-feature", "-deprecation")
 
@@ -18,12 +16,10 @@ lazy val root = (project in file("."))
     libraryDependencies += "com.lihaoyi" %%% "upickle" % "4.1.0",
     libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.19" % Test,
     libraryDependencies += "org.scalamock" %%% "scalamock" % "7.3.0" % Test
-
   )
   .enablePlugins(ScalaJSPlugin)
 
 scalacOptions ++= Seq(
-  "-Xsource:3",
   "-deprecation"
 )
 

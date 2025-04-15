@@ -10,6 +10,7 @@ import org.enricobn.vfs.*
 import org.enricobn.vfs.impl.{VirtualSecurityManagerImpl, VirtualUsersManagerFileImpl}
 import org.enricobn.vfs.inmemory.InMemoryFS
 
+import scala.compiletime.uninitialized
 import scala.scalajs.js.annotation.JSExportAll
 import scala.util.Random.nextInt
 
@@ -79,29 +80,29 @@ abstract class ConsoleGame(mainTerminal: Terminal, messagesTerminal: Terminal, l
 
   private var rootPassword = nextInt().toString
   private var userPassword = nextInt().toString
-  private var fs: UnixLikeInMemoryFS = _
-  private var vum: VirtualUsersManager = _
-  private var rootAuthentication: Authentication = _
-  private[consolegame] var shell: VirtualShell = _
-  private var messagesShell: VirtualShell = _
-  private var userName: String = _
+  private var fs: UnixLikeInMemoryFS = uninitialized
+  private var vum: VirtualUsersManager = uninitialized
+  private var rootAuthentication: Authentication = uninitialized
+  private[consolegame] var shell: VirtualShell = uninitialized
+  private var messagesShell: VirtualShell = uninitialized
+  private var userName: String = uninitialized
 
-  def onNewGame(shell: VirtualShell): Either[IOError, Unit]
+  protected def onNewGame(shell: VirtualShell): Either[IOError, Unit]
 
   /**
     *
     * @return Either an error or a sequence of pairs. The boolean indicates if the command should be run by the user
     */
-  def commands: Either[IOError, Seq[GameCommand]]
+  protected def commands: Either[IOError, Seq[GameCommand]]
 
-  def getSerializers: Seq[Serializer]
+  protected def getSerializers: Seq[Serializer]
 
   /**
     * an optional command to run in background when starting the shell
     *
     * @return an option pair of command name and arguments
     */
-  def getBackgroundCommand: Option[(String, List[String])]
+  protected def getBackgroundCommand: Option[(String, List[String])]
 
   def executeLater(runnable: () => Unit): Unit
 

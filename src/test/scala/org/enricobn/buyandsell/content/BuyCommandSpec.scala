@@ -11,11 +11,11 @@ import org.scalamock.matchers.Matchers
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 
-import scala.language.reflectiveCalls
+import scala.reflect.Selectable.reflectiveSelectable
 
 class BuyCommandSpec extends AnyFlatSpec with MockFactory with Matchers {
 
-  private def fixture = {
+  private def fixture: Object {val command: VirtualCommand; val guestFolder: VirtualFolder; val shell: VirtualShell} = {
     val fs = InMemoryFS(
       {
         VirtualUsersManagerFileImpl(_, "root").toOption.get
